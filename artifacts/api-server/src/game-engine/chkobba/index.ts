@@ -1,0 +1,52 @@
+export {
+  createDeck,
+  dealCards,
+  getCaptureCombinations,
+  secureRandomIndex,
+  shuffleDeck,
+} from "./cards.js";
+export {
+  calculateRoundScore,
+  captureCards,
+  createGame,
+  detectChkobba,
+  finishGame,
+  finishRound,
+  getLegalMoves,
+  playCard,
+  startNextRound,
+  validateMove,
+} from "./engine.js";
+export type { CreateGameOptions } from "./engine.js";
+export {
+  CHKOBBA_SUITS,
+  CHKOBBA_VALUES,
+  DEFAULT_CHKOBBA_RULES,
+} from "./types.js";
+export type {
+  BermilaTieBreakContext,
+  BermilaTieBreakResolver,
+  CaptureCombination,
+  ChkobbaCard,
+  ChkobbaGameState,
+  ChkobbaMoveAction,
+  ChkobbaPlayerState,
+  ChkobbaRuleConfig,
+  ChkobbaSuit,
+  ChkobbaValue,
+  FinishRoundResult,
+  GameResult,
+  LegalMove,
+  MoveError,
+  MoveErrorCode,
+  MoveResult,
+  RandomIndex,
+  RoundScore,
+  RoundScoreError,
+  RoundScoreResult,
+  ScoreCategory,
+  SideCardMetrics,
+  SideScore,
+  StartNextRoundResult,
+  TargetScore,
+} from "./types.js";

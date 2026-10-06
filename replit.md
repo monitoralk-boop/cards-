@@ -43,7 +43,7 @@ An Android-first, human-only multiplayer app for Tunisian Chkobba and Rami card 
 
 ## Product
 
-The planned app supports human-only online Chkobba Tunisienne and Rami Tunisien, private rooms, real-player matchmaking, profiles, friends, and localized Arabic/French/English interfaces. Only Phase 1 architecture and database foundations are implemented so far.
+The planned app supports human-only online Chkobba Tunisienne and Rami Tunisien, private rooms, real-player matchmaking, profiles, friends, and localized Arabic/French/English interfaces. Phase 1 architecture/database foundations and the Phase 2 server-side Chkobba engine are implemented. The comprehensive Chkobba test suite is Phase 3; the engine is not yet wired to an API, WebSocket server, or mobile UI.
 
 ## User preferences
 
@@ -56,6 +56,7 @@ The planned app supports human-only online Chkobba Tunisienne and Rami Tunisien,
 - Push Drizzle changes only to development with `pnpm --filter @workspace/db run push`; production schema changes go through Replit Publish.
 - Do not serialize game database rows or raw private-state snapshots to the mobile client.
 - Do not credit purchases or rewarded ads based only on a mobile-client assertion.
+- Do not finalize a round tied on Bermila without a configured policy/resolver; do not invent the between-round starting-seat rule.
 
 ## Pointers
 
