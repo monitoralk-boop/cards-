@@ -1,10 +1,12 @@
 const fs = require('fs');
+const net = require('node:net');
 const path = require('path');
 const { spawn } = require('child_process');
 const { Readable } = require('stream');
 const { pipeline } = require('stream/promises');
 
 let metroProcess = null;
+let metroPort = null;
 
 const projectRoot = path.resolve(__dirname, '..');
 
@@ -114,12 +116,47 @@ function clearMetroCache() {
   console.log('Cache cleared');
 }
 
+async function findAvailablePort(startPort = 8082) {
+  for (let port = startPort; port < startPort + 100; port += 1) {
+    const available = await new Promise((resolve, reject) => {
+      const server = net.createServer();
+      server.once('error', (error) => {
+        if (error.code === 'EADDRINUSE') {
+          resolve(false);
+        } else {
+          reject(error);
+        }
+      });
+      server.listen({ port, host: '127.0.0.1', exclusive: true }, () => {
+        server.close((error) => {
+          if (error) reject(error);
+          else resolve(true);
+        });
+      });
+    });
+
+    if (available) return port;
+  }
+
+  throw new Error(
+    `No free Metro port found between ${startPort} and ${startPort + 99}`,
+  );
+}
+
+function metroUrl(pathname = '/') {
+  if (!metroPort) {
+    throw new Error('Metro port has not been selected');
+  }
+  return new URL(pathname, `http://localhost:${metroPort}`).toString();
+}
+
 async function checkMetroHealth() {
   try {
-    const response = await fetch('http://localhost:8081/status', {
+    const response = await fetch(metroUrl('/status'), {
       signal: AbortSignal.timeout(5000),
     });
-    return response.ok;
+    if (!response.ok) return false;
+    return (await response.text()).trim() === 'packager-status:running';
   } catch {
     return false;
   }
@@ -150,7 +187,16 @@ async function startMetro(expoPublicDomain, expoPublicReplId) {
 
   metroProcess = spawn(
     'pnpm',
-    ['exec', 'expo', 'start', '--no-dev', '--minify', '--localhost'],
+    [
+      'exec',
+      'expo',
+      'start',
+      '--no-dev',
+      '--minify',
+      '--localhost',
+      '--port',
+      String(metroPort),
+    ],
     {
       stdio: ['ignore', 'pipe', 'pipe'],
       detached: false,
@@ -158,6 +204,13 @@ async function startMetro(expoPublicDomain, expoPublicReplId) {
       env,
     },
   );
+  metroProcess.once('exit', (code, signal) => {
+    if (code !== 0) {
+      console.error(
+        `Metro exited before the build was ready (code: ${code}, signal: ${signal})`,
+      );
+    }
+  });
 
   if (metroProcess.stdout) {
     metroProcess.stdout.on('data', (data) => {
@@ -174,6 +227,12 @@ async function startMetro(expoPublicDomain, expoPublicReplId) {
 
   for (let i = 0; i < 60; i++) {
     await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    if (metroProcess.exitCode !== null || metroProcess.signalCode !== null) {
+      throw new Error(
+        `Metro exited before becoming ready (code: ${metroProcess.exitCode}, signal: ${metroProcess.signalCode})`,
+      );
+    }
 
     const healthy = await checkMetroHealth();
     if (healthy) {
@@ -230,7 +289,7 @@ async function downloadBundle(platform, timestamp) {
     'entry',
   );
   const bundlePath = path.relative(workspaceRoot, entryPath);
-  const url = new URL(`http://localhost:8081/${bundlePath}.bundle`);
+  const url = new URL(`${bundlePath}.bundle`, metroUrl('/'));
   url.searchParams.set('platform', platform);
   url.searchParams.set('dev', 'false');
   url.searchParams.set('hot', 'false');
@@ -258,7 +317,7 @@ async function downloadManifest(platform) {
 
   try {
     console.log(`Fetching ${platform} manifest...`);
-    const response = await fetch('http://localhost:8081/manifest', {
+    const response = await fetch(metroUrl('/manifest'), {
       headers: { 'expo-platform': platform },
       signal: controller.signal,
     });
@@ -342,7 +401,7 @@ function extractAssets(timestamp) {
       const originalPath = match[1];
       const filename = match[3] + '.' + match[4];
 
-      const tempUrl = new URL(`http://localhost:8081${originalPath}`);
+      const tempUrl = new URL(originalPath, metroUrl('/'));
       const unstablePath = tempUrl.searchParams.get('unstable_path');
 
       if (!unstablePath) {
@@ -384,7 +443,7 @@ async function downloadAssets(assets, timestamp) {
   const failures = [];
 
   const downloadPromises = assets.map(async (asset) => {
-    const tempUrl = new URL(`http://localhost:8081${asset.originalPath}`);
+    const tempUrl = new URL(asset.originalPath, metroUrl('/'));
     const unstablePath = tempUrl.searchParams.get('unstable_path');
 
     if (!unstablePath) {
@@ -457,7 +516,7 @@ function updateBundleUrls(timestamp, baseUrl) {
     bundle = bundle.replace(
       /httpServerLocation:"(\/[^"]+)"/g,
       (_match, capturedPath) => {
-        const tempUrl = new URL(`http://localhost:8081${capturedPath}`);
+        const tempUrl = new URL(capturedPath, metroUrl('/'));
         const unstablePath = tempUrl.searchParams.get('unstable_path');
 
         if (!unstablePath) {
@@ -530,6 +589,19 @@ async function main() {
   const expoPublicReplId = getExpoPublicReplId();
   const baseUrl = `https://${domain}`;
   const timestamp = `${Date.now()}-${process.pid}`;
+
+  const requestedPort = process.env.EXPO_BUILD_PORT
+    ? Number(process.env.EXPO_BUILD_PORT)
+    : 8082;
+  if (
+    !Number.isInteger(requestedPort) ||
+    requestedPort < 1024 ||
+    requestedPort > 65535
+  ) {
+    throw new Error('EXPO_BUILD_PORT must be an integer between 1024 and 65535');
+  }
+  metroPort = await findAvailablePort(requestedPort);
+  console.log(`Using Metro port ${metroPort}`);
 
   prepareDirectories(timestamp);
   clearMetroCache();
