@@ -6,11 +6,18 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "tunisian-cards",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "bundleIdentifier": "com.monitoralk.tunisiancards"
     },
-    "android": {},
+    "android": {
+      "package": "com.monitoralk.tunisiancards",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#0D2818"
+      }
+    },
     "web": {
       "favicon": "./assets/images/icon.png"
     },
