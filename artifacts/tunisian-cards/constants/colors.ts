@@ -1,59 +1,73 @@
 /**
- * Semantic design tokens for the mobile app.
- *
- * These tokens mirror the naming conventions used in web artifacts (index.css)
- * so that multi-artifact projects share a cohesive visual identity.
- *
- * Replace the placeholder values below with values that match the project's
- * brand. If a sibling web artifact exists, read its index.css and convert the
- * HSL values to hex so both artifacts use the same palette.
- *
- * To add dark mode, add a `dark` key with the same token names.
- * The useColors() hook will automatically pick it up.
+ * Tunisian Card Game Design System & Tokens
+ * Authentic dark emerald green, warm gold accents, and burgundy felt.
  */
 
 const colors = {
   light: {
-    // Legacy aliases (kept for backward compatibility)
-    text: '#0a0a0a',
-    tint: '#2f95dc',
+    // Legacy aliases
+    text: '#F5F5F0',
+    tint: '#D4AF37',
 
-    // Core surfaces
-    background: '#ffffff',
-    foreground: '#0a0a0a',
+    // Core Surfaces
+    background: '#0D2818', // Deep Tunisian emerald
+    backgroundDark: '#081A10',
+    surface: '#133822',
+    surfaceElevated: '#1A4A2D',
+    foreground: '#FFFFFF',
 
     // Cards / elevated surfaces
-    card: '#f9f9f9',
-    cardForeground: '#0a0a0a',
+    card: '#123321',
+    cardBorder: '#1F4D32',
+    cardForeground: '#FFFFFF',
 
-    // Primary action color (buttons, links, active states)
-    primary: '#2f95dc',
-    primaryForeground: '#ffffff',
+    // Primary action color (Royal Tunisian Gold)
+    primary: '#D4AF37',
+    primaryHover: '#E5C04A',
+    primaryForeground: '#1A1405',
 
-    // Secondary / less-emphasis interactive surfaces
-    secondary: '#f0f0f0',
-    secondaryForeground: '#1a1a1a',
+    // Secondary / subtle surfaces
+    secondary: '#1A422B',
+    secondaryForeground: '#E2E8F0',
+    secondaryBorder: '#275E3F',
 
-    // Muted / subdued elements (dividers, timestamps, placeholders)
-    muted: '#f0f0f0',
-    mutedForeground: '#737373',
+    // Felt backgrounds
+    feltBurgundy: '#3E1220',
+    feltBurgundyBorder: '#290B14',
+    feltGreen: '#0B3820',
+    feltWood: '#2C1B14',
+    feltWoodBorder: '#1D120D',
 
-    // Accent highlights (badges, selected items, focus rings)
-    accent: '#f0f0f0',
-    accentForeground: '#1a1a1a',
+    // Muted / Subdued elements
+    muted: '#173623',
+    mutedForeground: '#8DA896',
+    mutedLight: '#A3BFAC',
 
-    // Destructive actions (delete, error states)
-    destructive: '#ef4444',
-    destructiveForeground: '#ffffff',
+    // Accent highlights (Gold & Badges)
+    accent: '#D4AF37',
+    accentForeground: '#1A1405',
+    goldLight: '#F5D77F',
+    goldDark: '#A6821C',
 
-    // Borders and input outlines
-    border: '#e5e5e5',
-    input: '#e5e5e5',
+    // Special status colors
+    success: '#22C55E',
+    warning: '#F59E0B',
+    destructive: '#EF4444',
+    destructiveForeground: '#FFFFFF',
+
+    // Borders & Dividers
+    border: '#1F4D32',
+    borderGold: 'rgba(212, 175, 55, 0.4)',
+    input: '#153A24',
+
+    // Playing card surfaces
+    playingCardBg: '#FAF6ED',
+    playingCardBorder: '#D8CCA8',
+    playingCardRed: '#C5221F',
+    playingCardBlack: '#1C1917',
+    playingCardGold: '#C4972E',
   },
-
-  // Border radius (in px). Sync from the sibling web artifact's --radius
-  // CSS variable. This value applies to cards, buttons, inputs, and modals.
-  radius: 8,
+  radius: 12,
 };
 
 export default colors;

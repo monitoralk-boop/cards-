@@ -1,0 +1,21 @@
+# Render.com Blueprint for Tunisian Card Game Server
+services:
+  - type: web
+    name: tunisian-card-game-api
+    runtime: node
+    plan: free
+    region: frankfurt # Low latency to Tunisia / Europe
+    buildCommand: npm install -g pnpm && pnpm install && pnpm --filter @workspace/api-server run build
+    startCommand: pnpm --filter @workspace/api-server run start
+    healthCheckPath: /api/healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: DATABASE_URL
+        sync: false # Set in Render Dashboard: Supabase PostgreSQL Connection URI
+      - key: SUPABASE_URL
+        sync: false # Set in Render Dashboard: https://[your-project].supabase.co
+      - key: SUPABASE_ANON_KEY
+        sync: false # Set in Render Dashboard: your anon key

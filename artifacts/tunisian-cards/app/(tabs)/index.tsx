@@ -1,30 +1,718 @@
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import {
+  StyleSheet,
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  SafeAreaView,
+  StatusBar,
+  Modal,
+} from 'react-native';
+import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { GameArena } from '@/components/game/GameArena';
+import { RewardedAdModal } from '@/components/ads/RewardedAdModal';
+import colors from '@/constants/colors';
 
-export default function TabOneScreen() {
+export default function HomeScreen() {
+  const [activeGame, setActiveGame] = useState<'chkobba' | 'rami' | null>(null);
+  const [dailyClaimed, setDailyClaimed] = useState(false);
+  const [coins, setCoins] = useState(1000);
+  const [showAdModal, setShowAdModal] = useState(false);
+  const [adsWatched, setAdsWatched] = useState(0);
+
+  // If in game, render the full GameArena
+  if (activeGame) {
+    return (
+      <GameArena
+        gameMode={activeGame}
+        onBackToLobby={() => setActiveGame(null)}
+      />
+    );
+  }
+
+  const handleClaimDaily = () => {
+    if (!dailyClaimed) {
+      setDailyClaimed(true);
+      setCoins((prev) => prev + 500);
+    }
+  };
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Replit Agent is building...</Text>
-      <Text style={styles.text}>
-        Your app will appear here once it's ready.
-      </Text>
-    </View>
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="light-content" backgroundColor="#0B2014" />
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ==================================================== */}
+        {/* 1. TOP PROFILE & WALLET BAR                          */}
+        {/* ==================================================== */}
+        <View style={styles.header}>
+          <View style={styles.profileSection}>
+            {/* Avatar with level badge */}
+            <View style={styles.avatarWrapper}>
+              <View style={styles.avatarCircle}>
+                <Ionicons name="person" size={24} color="#A3BFAC" />
+              </View>
+              <View style={styles.levelBadge}>
+                <Text style={styles.levelText}>1</Text>
+              </View>
+            </View>
+
+            {/* Username & XP Bar */}
+            <View style={styles.userInfo}>
+              <Text style={styles.username}>monitoralk</Text>
+              <View style={styles.xpRow}>
+                <Text style={styles.levelLabel}>Niv. 1</Text>
+                <Text style={styles.xpText}>0 / 2000 XP</Text>
+              </View>
+              <View style={styles.xpTrack}>
+                <View style={[styles.xpFill, { width: '15%' }]} />
+              </View>
+            </View>
+          </View>
+
+          {/* Wallet & Settings */}
+          <View style={styles.headerRight}>
+            <View style={styles.coinBadge}>
+              <Text style={styles.coinIcon}>🪙</Text>
+              <Text style={styles.coinAmount}>
+                {coins >= 1000 ? `${(coins / 1000).toFixed(1)}K` : coins}
+              </Text>
+              <TouchableOpacity style={styles.coinAddBtn}>
+                <Feather name="plus" size={12} color="#1A1405" />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity style={styles.settingsBtn}>
+              <Feather name="settings" size={20} color="#8DA896" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* ==================================================== */}
+        {/* 2. DAILY REWARD CARD                                 */}
+        {/* ==================================================== */}
+        <View style={styles.rewardCard}>
+          <View style={styles.rewardLeft}>
+            <View style={styles.giftIconBox}>
+              <Text style={styles.giftEmoji}>🎁</Text>
+            </View>
+            <View style={styles.rewardInfo}>
+              <Text style={styles.rewardTitle}>Récompense Jour 4</Text>
+              <Text style={styles.rewardSubtitle}>
+                {dailyClaimed
+                  ? 'Récompense réclamée avec succès !'
+                  : '+500 pièces vous attendent'}
+              </Text>
+
+              {/* Progress Dots */}
+              <View style={styles.rewardDotsRow}>
+                {[1, 2, 3, 4, 5, 6, 7].map((day) => (
+                  <View
+                    key={day}
+                    style={[
+                      styles.rewardDot,
+                      day <= 4 && styles.rewardDotActive,
+                      day === 4 && styles.rewardDotCurrent,
+                    ]}
+                  />
+                ))}
+              </View>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            onPress={handleClaimDaily}
+            disabled={dailyClaimed}
+            style={[
+              styles.claimButton,
+              dailyClaimed && styles.claimButtonDisabled,
+            ]}
+          >
+            <Text style={styles.claimButtonText}>
+              {dailyClaimed ? 'Réclamé' : 'Réclamer >'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* ==================================================== */}
+        {/* REWARDED AD SPOT: WATCH AD FOR COINS                 */}
+        {/* ==================================================== */}
+        <View style={styles.adBannerCard}>
+          <View style={styles.adBannerLeft}>
+            <View style={styles.adIconBox}>
+              <Text style={styles.adEmoji}>🎬</Text>
+            </View>
+            <View style={styles.adInfo}>
+              <View style={styles.adTitleRow}>
+                <Text style={styles.adTitle}>Regarder une pub</Text>
+                <View style={styles.adCoinBadge}>
+                  <Text style={styles.adCoinText}>+100 🪙</Text>
+                </View>
+              </View>
+              <Text style={styles.adSubtitle}>
+                {adsWatched >= 5
+                  ? 'Limite quotidienne atteinte (5/5)'
+                  : `Obtenez 100 jetons gratuits (${5 - adsWatched}/5 restants)`}
+              </Text>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            disabled={adsWatched >= 5}
+            onPress={() => setShowAdModal(true)}
+            style={[
+              styles.watchAdBtn,
+              adsWatched >= 5 && styles.watchAdBtnDisabled,
+            ]}
+          >
+            <Feather name="play" size={14} color="#1A1405" />
+            <Text style={styles.watchAdBtnText}>Visionner</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Rewarded Ad Modal */}
+        <RewardedAdModal
+          visible={showAdModal}
+          rewardAmount={100}
+          onRewardEarned={(reward) => {
+            setCoins((c) => c + reward);
+            setAdsWatched((w) => w + 1);
+          }}
+          onClose={() => setShowAdModal(false)}
+        />
+
+        {/* ==================================================== */}
+        {/* 3. SECTION HEADER                                    */}
+        {/* ==================================================== */}
+        <View style={styles.sectionHeader}>
+          <View style={styles.sectionTitleRow}>
+            <Text style={styles.sectionEmoji}>🃏</Text>
+            <Text style={styles.sectionTitle}>Choisir un jeu</Text>
+          </View>
+          <Text style={styles.sectionSubtitle}>
+            Joueurs réels uniquement — aucun robot
+          </Text>
+        </View>
+
+        {/* ==================================================== */}
+        {/* 4. GAME CARD: CHKOBBA TUNISIENNE                    */}
+        {/* ==================================================== */}
+        <View style={styles.gameCard}>
+          {/* Card Banner / Visual */}
+          <View style={styles.gameBannerArea}>
+            <Text style={styles.gameBannerTitle}>Chkobba</Text>
+            <View style={styles.gamePillTags}>
+              <View style={styles.gamePill}>
+                <Ionicons name="people" size={13} color="#FDE68A" />
+                <Text style={styles.gamePillText}>2-4</Text>
+              </View>
+              <View style={styles.gamePill}>
+                <Text style={styles.gamePillCoin}>🪙</Text>
+                <Text style={styles.gamePillText}>100+</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Description */}
+          <View style={styles.gameCardBody}>
+            <Text style={styles.gameName}>Chkobba Tunisienne</Text>
+            <Text style={styles.gameDetails}>
+              2-4 joueurs · 40 cartes · Traditionnel
+            </Text>
+
+            {/* Main Action: Quick Play */}
+            <TouchableOpacity
+              onPress={() => setActiveGame('chkobba')}
+              style={styles.quickPlayBtn}
+            >
+              <Text style={styles.quickPlayText}>⚡ Partie rapide</Text>
+            </TouchableOpacity>
+
+            {/* Secondary Buttons Row */}
+            <View style={styles.secondaryBtnRow}>
+              <TouchableOpacity
+                onPress={() => setActiveGame('chkobba')}
+                style={styles.subActionBtn}
+              >
+                <Feather name="plus-circle" size={14} color="#FDE68A" />
+                <Text style={styles.subActionText}>Créer</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setActiveGame('chkobba')}
+                style={styles.subActionBtn}
+              >
+                <Feather name="log-in" size={14} color="#FDE68A" />
+                <Text style={styles.subActionText}>Rejoindre</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+        {/* ==================================================== */}
+        {/* 5. GAME CARD: RAMI TUNISIEN                          */}
+        {/* ==================================================== */}
+        <View style={styles.gameCard}>
+          <View style={[styles.gameBannerArea, styles.ramiBanner]}>
+            <Text style={styles.gameBannerTitle}>Rami</Text>
+            <View style={styles.gamePillTags}>
+              <View style={styles.gamePill}>
+                <Ionicons name="people" size={13} color="#FDE68A" />
+                <Text style={styles.gamePillText}>2-4</Text>
+              </View>
+              <View style={styles.gamePill}>
+                <Text style={styles.gamePillCoin}>🪙</Text>
+                <Text style={styles.gamePillText}>100+</Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.gameCardBody}>
+            <Text style={styles.gameName}>Rami Tunisien</Text>
+            <Text style={styles.gameDetails}>
+              2-4 joueurs · 108 cartes · Melds & Tierce
+            </Text>
+
+            <TouchableOpacity
+              onPress={() => setActiveGame('rami')}
+              style={styles.quickPlayBtn}
+            >
+              <Text style={styles.quickPlayText}>⚡ Partie rapide</Text>
+            </TouchableOpacity>
+
+            <View style={styles.secondaryBtnRow}>
+              <TouchableOpacity
+                onPress={() => setActiveGame('rami')}
+                style={styles.subActionBtn}
+              >
+                <Feather name="plus-circle" size={14} color="#FDE68A" />
+                <Text style={styles.subActionText}>Créer</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setActiveGame('rami')}
+                style={styles.subActionBtn}
+              >
+                <Feather name="log-in" size={14} color="#FDE68A" />
+                <Text style={styles.subActionText}>Rejoindre</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#0A2114',
+  },
   container: {
     flex: 1,
+    backgroundColor: '#0D2818',
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 90,
+  },
+
+  // 1. Header Profile & Wallet
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    marginBottom: 12,
+  },
+  profileSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  avatarWrapper: {
+    position: 'relative',
+  },
+  avatarCircle: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#163E27',
+    borderColor: '#D4AF37',
+    borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  levelBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: '#D4AF37',
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#0D2818',
+  },
+  levelText: {
+    color: '#1A1405',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  userInfo: {
+    gap: 3,
+  },
+  username: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  xpRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  levelLabel: {
+    color: '#9EBAA7',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  xpText: {
+    color: '#6E8B78',
+    fontSize: 10,
+  },
+  xpTrack: {
+    width: 110,
+    height: 4,
+    backgroundColor: '#173F27',
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginTop: 2,
+  },
+  xpFill: {
+    height: '100%',
+    backgroundColor: '#D4AF37',
+    borderRadius: 2,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  coinBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#123321',
+    borderColor: '#D4AF37',
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    gap: 4,
+  },
+  coinIcon: {
+    fontSize: 13,
+  },
+  coinAmount: {
+    color: '#FDE68A',
+    fontWeight: '800',
+    fontSize: 13,
+  },
+  coinAddBtn: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#D4AF37',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 2,
+  },
+  settingsBtn: {
+    padding: 6,
+  },
+
+  // 2. Daily Reward Card
+  rewardCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#123321',
+    borderRadius: 14,
+    padding: 14,
+    borderColor: '#1D4A30',
+    borderWidth: 1,
+    marginBottom: 20,
+  },
+  rewardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  giftIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: '#1B472E',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  giftEmoji: {
+    fontSize: 24,
+  },
+  rewardInfo: {
+    gap: 3,
+    flex: 1,
+  },
+  rewardTitle: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  rewardSubtitle: {
+    color: '#8DA896',
+    fontSize: 11,
+  },
+  rewardDotsRow: {
+    flexDirection: 'row',
+    gap: 4,
+    marginTop: 4,
+  },
+  rewardDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#1C442D',
+  },
+  rewardDotActive: {
+    backgroundColor: '#D4AF37',
+  },
+  rewardDotCurrent: {
+    width: 12,
+    borderRadius: 4,
+  },
+  claimButton: {
+    backgroundColor: '#D4AF37',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+  },
+  claimButtonDisabled: {
+    backgroundColor: '#1E4730',
+  },
+  claimButtonText: {
+    color: '#1A1405',
+    fontWeight: '800',
+    fontSize: 12,
+  },
+
+  // 3. Section Header
+  sectionHeader: {
+    marginBottom: 12,
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  sectionEmoji: {
+    fontSize: 16,
+  },
+  sectionTitle: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  sectionSubtitle: {
+    color: '#769781',
+    fontSize: 12,
+    marginTop: 2,
+  },
+
+  // 4. Game Card
+  gameCard: {
+    backgroundColor: '#123321',
+    borderRadius: 16,
+    borderColor: '#1D4A30',
+    borderWidth: 1,
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  gameBannerArea: {
+    height: 100,
+    backgroundColor: '#0F2C1C',
+    padding: 14,
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: '#174026',
+    position: 'relative',
+  },
+  ramiBanner: {
+    backgroundColor: '#16281E',
+  },
+  gameBannerTitle: {
+    color: 'rgba(212, 175, 55, 0.45)',
+    fontSize: 32,
+    fontWeight: '900',
+    textAlign: 'center',
+    marginTop: 10,
+  },
+  gamePillTags: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 6,
+  },
+  gamePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 10,
+    gap: 3,
+  },
+  gamePillCoin: {
+    fontSize: 10,
+  },
+  gamePillText: {
+    color: '#FDE68A',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  gameCardBody: {
+    padding: 14,
     gap: 8,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  text: {
+  gameName: {
+    color: '#FFF',
     fontSize: 16,
-    textAlign: 'center',
-    paddingHorizontal: 20,
+    fontWeight: '800',
+  },
+  gameDetails: {
+    color: '#8DA896',
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  quickPlayBtn: {
+    backgroundColor: '#D4AF37',
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    shadowColor: '#D4AF37',
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  quickPlayText: {
+    color: '#1A1405',
+    fontWeight: '800',
+    fontSize: 14,
+  },
+  secondaryBtnRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 2,
+  },
+  subActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#183F29',
+    borderColor: '#24593B',
+    borderWidth: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 6,
+  },
+  subActionText: {
+    color: '#E2E8F0',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  // Rewarded Ad Banner Card
+  adBannerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#163E27',
+    borderRadius: 14,
+    padding: 14,
+    borderColor: '#D4AF37',
+    borderWidth: 1,
+    marginBottom: 20,
+  },
+  adBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  adIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: '#0F2C1C',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderColor: 'rgba(212, 175, 55, 0.4)',
+    borderWidth: 1,
+  },
+  adEmoji: {
+    fontSize: 22,
+  },
+  adInfo: {
+    flex: 1,
+    gap: 3,
+  },
+  adTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  adTitle: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  adCoinBadge: {
+    backgroundColor: 'rgba(212, 175, 55, 0.25)',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 6,
+  },
+  adCoinText: {
+    color: '#FDE68A',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  adSubtitle: {
+    color: '#8DA896',
+    fontSize: 11,
+  },
+  watchAdBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#D4AF37',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 4,
+  },
+  watchAdBtnDisabled: {
+    backgroundColor: '#1E4730',
+  },
+  watchAdBtnText: {
+    color: '#1A1405',
+    fontWeight: '800',
+    fontSize: 12,
   },
 });
+
