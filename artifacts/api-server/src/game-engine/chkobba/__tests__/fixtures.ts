@@ -83,9 +83,7 @@ export function createCompletedState(
   };
 }
 
-export function completedCardPiles(
-  playerCount: number,
-): ChkobbaCard[][] {
+export function completedCardPiles(playerCount: number): ChkobbaCard[][] {
   const cards = createDeck();
   const piles = Array.from({ length: playerCount }, () => [] as ChkobbaCard[]);
   cards.forEach((card, index) => piles[index % playerCount]?.push(card));
@@ -97,10 +95,7 @@ export function fullCardCount(state: ChkobbaGameState): number {
     state.deck.length +
     state.table.length +
     state.players.reduce(
-      (sum, player) =>
-        sum +
-        player.hand.length +
-        player.capturedCards.length,
+      (sum, player) => sum + player.hand.length + player.capturedCards.length,
       0,
     )
   );
@@ -120,8 +115,7 @@ export function shuffleChoicesFor(
   for (let index = working.length - 1; index > 0; index -= 1) {
     const targetId = targetOrder[index]!.id;
     const swapIndex = working.findIndex(
-      (card, candidateIndex) =>
-        candidateIndex <= index && card.id === targetId,
+      (card, candidateIndex) => candidateIndex <= index && card.id === targetId,
     );
     assert.notEqual(swapIndex, -1);
     choices.push(swapIndex);

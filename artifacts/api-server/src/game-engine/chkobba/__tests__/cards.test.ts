@@ -9,10 +9,7 @@ import {
   secureRandomIndex,
   shuffleDeck,
 } from "../index.js";
-import {
-  identityRandomIndex,
-  makeCard,
-} from "./fixtures.js";
+import { identityRandomIndex, makeCard } from "./fixtures.js";
 
 describe("Chkobba deck and card handling", () => {
   it("creates one unique card for each of four suits and ten values", () => {
@@ -37,8 +34,14 @@ describe("Chkobba deck and card handling", () => {
     const shuffled = shuffleDeck(deck, (upperBound) => upperBound - 1);
 
     assert.notEqual(shuffled, deck);
-    assert.deepEqual(shuffled.map((card) => card.id), before);
-    assert.deepEqual(deck.map((card) => card.id), before);
+    assert.deepEqual(
+      shuffled.map((card) => card.id),
+      before,
+    );
+    assert.deepEqual(
+      deck.map((card) => card.id),
+      before,
+    );
 
     const randomized = shuffleDeck(deck, () => 0);
     assert.deepEqual(
@@ -193,10 +196,7 @@ describe("capture combination enumeration", () => {
   });
 
   it("does not mutate the supplied table while enumerating captures", () => {
-    const table = [
-      makeCard("dineri", 3, "t3"),
-      makeCard("coupe", 4, "t4"),
-    ];
+    const table = [makeCard("dineri", 3, "t3"), makeCard("coupe", 4, "t4")];
     const before = [...table];
     getCaptureCombinations(table, makeCard("spade", 7, "played:7"));
     assert.deepEqual(table, before);

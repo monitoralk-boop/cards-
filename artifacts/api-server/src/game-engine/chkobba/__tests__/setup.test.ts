@@ -1,14 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import {
-  createDeck,
-  createGame,
-  startNextRound,
-} from "../index.js";
-import {
-  identityRandomIndex,
-  shuffleChoicesFor,
-} from "./fixtures.js";
+import { createDeck, createGame, startNextRound } from "../index.js";
+import { identityRandomIndex, shuffleChoicesFor } from "./fixtures.js";
 
 describe("Chkobba game setup", () => {
   for (const playerCount of [2, 3, 4]) {
@@ -41,7 +34,10 @@ describe("Chkobba game setup", () => {
         assert.equal(state.players[1]?.sideId, state.players[3]?.sideId);
         assert.notEqual(state.players[0]?.sideId, state.players[1]?.sideId);
       } else {
-        assert.equal(new Set(state.players.map((player) => player.sideId)).size, playerCount);
+        assert.equal(
+          new Set(state.players.map((player) => player.sideId)).size,
+          playerCount,
+        );
       }
     });
   }

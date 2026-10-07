@@ -9,6 +9,7 @@ import {
   startNextRound,
   type ChkobbaCard,
   type ChkobbaGameState,
+  type RoundScore,
 } from "../index.js";
 import {
   completedCardPiles,
@@ -26,14 +27,10 @@ function uniqueLeaderPiles(
   );
   const p1 = [
     ...deck.filter((card) => card.suit === "dineri"),
-    ...deck.filter(
-      (card) => card.value === 7 && card.suit !== "dineri",
-    ),
+    ...deck.filter((card) => card.value === 7 && card.suit !== "dineri"),
   ];
   const p1Ids = new Set(p1.map((card) => card.id));
-  p1.push(
-    ...deck.filter((card) => !p1Ids.has(card.id)).slice(0, 12),
-  );
+  p1.push(...deck.filter((card) => !p1Ids.has(card.id)).slice(0, 12));
   const finalP1Ids = new Set(p1.map((card) => card.id));
   const p2 = deck.filter((card) => !finalP1Ids.has(card.id));
   return [p1, p2];
@@ -41,10 +38,7 @@ function uniqueLeaderPiles(
 
 function tiedPiles(): ChkobbaCard[][] {
   const suitIndex = new Map(
-    ["dineri", "coupe", "bastoni", "spade"].map((suit, index) => [
-      suit,
-      index,
-    ]),
+    ["dineri", "coupe", "bastoni", "spade"].map((suit, index) => [suit, index]),
   );
   const piles: ChkobbaCard[][] = [[], []];
   for (const card of createDeck()) {
@@ -93,8 +87,9 @@ describe("round scoring", () => {
       "player-1",
     );
     assert.equal(
-      result.score.categories.find((category) => category.category === "bermila")
-        ?.awardedPoints[0]?.sideId,
+      result.score.categories.find(
+        (category) => category.category === "bermila",
+      )?.awardedPoints[0]?.sideId,
       "player-1",
     );
     assert.equal(
@@ -104,8 +99,9 @@ describe("round scoring", () => {
       "player-1",
     );
     assert.deepEqual(
-      result.score.categories.find((category) => category.category === "chkobba")
-        ?.awardedPoints,
+      result.score.categories.find(
+        (category) => category.category === "chkobba",
+      )?.awardedPoints,
       [
         { sideId: "player-1", points: 2 },
         { sideId: "player-2", points: 1 },
@@ -135,11 +131,10 @@ describe("round scoring", () => {
     if (!resolved.ok) return;
 
     for (const name of ["carta", "dineri", "bermila"] as const) {
-      const category = resolved.score.categories.find(
-        (item) => item.category === name,
-      );
-      assert.equal(category?.tied, true);
-      assert.deepEqual(category?.awardedPoints, []);
+      const breakdown: RoundScore["categories"][number] | undefined =
+        resolved.score.categories.find((item) => item.category === name);
+      assert.equal(breakdown?.tied, true);
+      assert.deepEqual(breakdown?.awardedPoints, []);
     }
     assert.deepEqual(
       resolved.score.categories.find(
@@ -223,20 +218,14 @@ describe("round scoring", () => {
     assert.equal(metrics["team-2"]?.chkobbaCount, 2);
     assert.equal(metrics["team-1"]?.sevenCount, 2);
     assert.equal(metrics["team-2"]?.sevenCount, 2);
-    assert.deepEqual(
-      result.score.pointsBySide,
-      [
-        { sideId: "team-1", points: 7 },
-        { sideId: "team-2", points: 2 },
-      ],
-    );
+    assert.deepEqual(result.score.pointsBySide, [
+      { sideId: "team-1", points: 7 },
+      { sideId: "team-2", points: 2 },
+    ]);
   });
 
   it("assigns remaining table cards to the last capturer without adding a Chkobba", () => {
-    const table = [
-      makeCard("spade", 1),
-      makeCard("spade", 2),
-    ];
+    const table = [makeCard("spade", 1), makeCard("spade", 2)];
     const piles = uniqueLeaderPiles(table.map((card) => card.id));
     const state = createCompletedState(piles, {
       table,
@@ -263,7 +252,9 @@ describe("round scoring", () => {
       ),
       40,
     );
-    assert.ok(result.state.players.every((player) => player.chkobbaCount === 0));
+    assert.ok(
+      result.state.players.every((player) => player.chkobbaCount === 0),
+    );
   });
 
   it("fails explicitly if leftover table cards have no last capturer", () => {
@@ -359,11 +350,7 @@ describe("game target and round lifecycle", () => {
     assert.equal(finalized.ok, true);
     if (!finalized.ok) return;
 
-    const nextRound = startNextRound(
-      finalized.state,
-      1,
-      identityRandomIndex,
-    );
+    const nextRound = startNextRound(finalized.state, 1, identityRandomIndex);
     assert.equal(nextRound.ok, true);
     if (!nextRound.ok) return;
     assert.equal(nextRound.state.roundNumber, 2);
@@ -407,11 +394,7 @@ describe("game target and round lifecycle", () => {
     const scored = finishRound(notFinished);
     assert.equal(scored.ok, true);
     if (!scored.ok) return;
-    const invalidSeat = startNextRound(
-      scored.state,
-      2,
-      identityRandomIndex,
-    );
+    const invalidSeat = startNextRound(scored.state, 2, identityRandomIndex);
     assert.equal(invalidSeat.ok, false);
     if (!invalidSeat.ok) {
       assert.equal(invalidSeat.error.code, "invalid_starting_seat");

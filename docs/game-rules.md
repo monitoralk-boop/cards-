@@ -16,7 +16,7 @@ Rule engines are planned as pure, server-only TypeScript modules. This document 
 - Bermila ties intentionally do not have a default winner: finalizing a tied round requires an explicitly selected policy and resolver. New-round starting seat is supplied by the caller because the prompt does not specify dealer/lead rotation.
 - If a finished round has table cards but no recorded capturer, scoring fails explicitly rather than assigning those cards arbitrarily.
 
-The full automated rule suite belongs to Phase 3. This phase has focused runtime smoke checks only. The engine is not yet connected to an HTTP/WebSocket route or mobile UI.
+The automated rule suite is in `artifacts/api-server/src/game-engine/chkobba/__tests__/` and runs with `pnpm --filter @workspace/api-server run test`. It covers dealing, capture selection, mandatory moves, complete rounds for 2–4 players, scoring, and round transitions. The engine is not yet connected to an HTTP/WebSocket route or mobile UI.
 
 ## Rami
 

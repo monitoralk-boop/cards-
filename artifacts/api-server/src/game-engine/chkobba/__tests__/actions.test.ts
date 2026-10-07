@@ -31,10 +31,7 @@ describe("legal moves and action validation", () => {
   it("requires a capture if any card in the hand can capture", () => {
     const state = createActionState(
       [
-        [
-          makeCard("dineri", 9, "p1:9"),
-          makeCard("coupe", 2, "p1:2"),
-        ],
+        [makeCard("dineri", 9, "p1:9"), makeCard("coupe", 2, "p1:2")],
         [makeCard("bastoni", 5, "p2:5")],
       ],
       [makeCard("spade", 2, "table:2")],
@@ -127,14 +124,11 @@ describe("legal moves and action validation", () => {
     assert.equal(afterRound.ok, false);
     if (!afterRound.ok) assert.equal(afterRound.error.code, "round_complete");
 
-    const malformed = validateMove(
-      state,
-      {
-        playerId: "player-1",
-        playedCardId: "p1:1",
-        captureCardIds: [42],
-      } as unknown as Parameters<typeof validateMove>[1],
-    );
+    const malformed = validateMove(state, {
+      playerId: "player-1",
+      playedCardId: "p1:1",
+      captureCardIds: [42],
+    } as unknown as Parameters<typeof validateMove>[1]);
     assert.equal(malformed.ok, false);
     if (!malformed.ok) assert.equal(malformed.error.code, "invalid_action");
   });
@@ -148,11 +142,10 @@ describe("capture execution and Chkobba", () => {
       makeCard("spade", 1, "table:1"),
       makeCard("bastoni", 2, "table:2"),
     ];
-    const result = captureCards(
-      table,
-      makeCard("coupe", 7, "played:7"),
-      ["table:3", "table:4"],
-    );
+    const result = captureCards(table, makeCard("coupe", 7, "played:7"), [
+      "table:3",
+      "table:4",
+    ]);
 
     assert.equal(result.ok, true);
     if (result.ok) {
@@ -196,7 +189,10 @@ describe("capture execution and Chkobba", () => {
 
     assert.equal(result.ok, true);
     if (result.ok) {
-      assert.deepEqual(result.state.table.map((card) => card.id), ["p1:7"]);
+      assert.deepEqual(
+        result.state.table.map((card) => card.id),
+        ["p1:7"],
+      );
       assert.equal(result.state.lastCapturerPlayerId, null);
       assert.equal(result.chkobbaAwarded, false);
     }
@@ -204,10 +200,7 @@ describe("capture execution and Chkobba", () => {
 
   it("awards Chkobba when a non-final capture clears the table", () => {
     const state = createActionState(
-      [
-        [makeCard("dineri", 7, "p1:7")],
-        [makeCard("coupe", 8, "p2:8")],
-      ],
+      [[makeCard("dineri", 7, "p1:7")], [makeCard("coupe", 8, "p2:8")]],
       [makeCard("spade", 7, "table:7")],
     );
     const result = playCard(state, {
@@ -246,11 +239,7 @@ describe("capture execution and Chkobba", () => {
 
   it("detects sweeps only when the table is empty and the play is not final", () => {
     assert.equal(
-      detectChkobba(
-        [makeCard("spade", 1, "table:1")],
-        [],
-        [[]],
-      ),
+      detectChkobba([makeCard("spade", 1, "table:1")], [], [[]]),
       false,
     );
     assert.equal(detectChkobba([], [], [[], []]), false);
@@ -292,10 +281,13 @@ describe("dealing batches and full rounds", () => {
       const state = simulateCompleteRound(playerCount);
 
       assert.equal(state.roundStatus, "complete");
-      assert.equal(state.players.reduce(
-        (sum, player) => sum + player.capturedCards.length,
-        0,
-      ) + state.table.length, 40);
+      assert.equal(
+        state.players.reduce(
+          (sum, player) => sum + player.capturedCards.length,
+          0,
+        ) + state.table.length,
+        40,
+      );
       assert.ok(state.players.every((player) => player.hand.length === 0));
     });
   }

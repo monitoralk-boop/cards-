@@ -43,7 +43,7 @@ An Android-first, human-only multiplayer app for Tunisian Chkobba and Rami card 
 
 ## Product
 
-The planned app supports human-only online Chkobba Tunisienne and Rami Tunisien, private rooms, real-player matchmaking, profiles, friends, and localized Arabic/French/English interfaces. Phase 1 architecture/database foundations and the Phase 2 server-side Chkobba engine are implemented. The comprehensive Chkobba test suite is Phase 3; the engine is not yet wired to an API, WebSocket server, or mobile UI.
+The planned app supports human-only online Chkobba Tunisienne and Rami Tunisien, private rooms, real-player matchmaking, profiles, friends, and localized Arabic/French/English interfaces. Phase 1 architecture/database foundations, the Phase 2 server-side Chkobba engine, and the Phase 3 automated engine tests are implemented. The engine is not yet wired to an API, WebSocket server, or mobile UI.
 
 ## User preferences
 
