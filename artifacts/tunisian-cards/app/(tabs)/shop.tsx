@@ -11,9 +11,11 @@ import {
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { CardBackPattern } from '@/components/game/CardSuits';
 import { RewardedAdModal } from '@/components/ads/RewardedAdModal';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function ShopScreen() {
-  const [coins, setCoins] = useState(1000);
+  const { user, updateCoins } = useAuth();
+  const coins = user?.coins ?? 1000;
   const [selectedBack, setSelectedBack] = useState<'red' | 'green'>('red');
   const [showAdModal, setShowAdModal] = useState(false);
 
@@ -31,8 +33,8 @@ export default function ShopScreen() {
         { text: 'Annuler', style: 'cancel' },
         {
           text: 'Confirmer',
-          onPress: () => {
-            setCoins((c) => c + pkg.coins);
+          onPress: async () => {
+            await updateCoins(pkg.coins);
             Alert.alert('Succès', `${pkg.coins} jetons ajoutés à votre compte !`);
           },
         },
@@ -113,7 +115,9 @@ export default function ShopScreen() {
         <RewardedAdModal
           visible={showAdModal}
           rewardAmount={100}
-          onRewardEarned={(reward) => setCoins((c) => c + reward)}
+          onRewardEarned={async (reward) => {
+            await updateCoins(reward);
+          }}
           onClose={() => setShowAdModal(false)}
         />
 
@@ -184,6 +188,38 @@ export default function ShopScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Section: Jetons Gratuits (Pub) */}
+        <Text style={[styles.sectionTitle, { marginTop: 20 }]}>
+          🎁 Jetons Gratuits
+        </Text>
+        <TouchableOpacity
+          onPress={() => setShowAdModal(true)}
+          style={styles.freeCoinsAdCard}
+        >
+          <View style={styles.freeCoinsLeft}>
+            <View style={styles.adIconBox}>
+              <Text style={styles.adEmoji}>🎬</Text>
+            </View>
+            <View style={styles.freeCoinsInfo}>
+              <Text style={styles.freeCoinsTitle}>Regarder une courte vidéo</Text>
+              <Text style={styles.freeCoinsDesc}>Gagnez +100 pièces gratuitement</Text>
+            </View>
+          </View>
+          <View style={styles.freeClaimBtn}>
+            <Text style={styles.freeClaimBtnText}>+100 🪙</Text>
+          </View>
+        </TouchableOpacity>
+
+        {/* Rewarded Ad Modal */}
+        <RewardedAdModal
+          visible={showAdModal}
+          rewardAmount={100}
+          onRewardEarned={async (reward) => {
+            await updateCoins(reward);
+          }}
+          onClose={() => setShowAdModal(false)}
+        />
       </ScrollView>
     </SafeAreaView>
   );

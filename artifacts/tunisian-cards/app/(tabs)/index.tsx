@@ -12,14 +12,25 @@ import {
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { GameArena } from '@/components/game/GameArena';
 import { RewardedAdModal } from '@/components/ads/RewardedAdModal';
+import { LoginModal } from '@/components/auth/LoginModal';
+import { useAuth } from '@/contexts/AuthContext';
 import colors from '@/constants/colors';
 
 export default function HomeScreen() {
+  const { user, updateCoins } = useAuth();
   const [activeGame, setActiveGame] = useState<'chkobba' | 'rami' | null>(null);
   const [dailyClaimed, setDailyClaimed] = useState(false);
-  const [coins, setCoins] = useState(1000);
   const [showAdModal, setShowAdModal] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const [adsWatched, setAdsWatched] = useState(0);
+
+  const coins = user?.coins ?? 1000;
+  const username = user?.username ?? 'monitoralk';
+  const level = user?.level ?? 1;
+  const xp = user?.xp ?? 350;
+  const xpTarget = user?.xpTarget ?? 2000;
+  const avatarColor = user?.avatarColor ?? '#163E27';
+  const avatarEmoji = user?.avatarEmoji ?? '👑';
 
   // If in game, render the full GameArena
   if (activeGame) {
@@ -31,12 +42,14 @@ export default function HomeScreen() {
     );
   }
 
-  const handleClaimDaily = () => {
+  const handleClaimDaily = async () => {
     if (!dailyClaimed) {
       setDailyClaimed(true);
-      setCoins((prev) => prev + 500);
+      await updateCoins(500);
     }
   };
+
+  const xpPercent = Math.min(100, Math.round((xp / xpTarget) * 100));
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -50,29 +63,36 @@ export default function HomeScreen() {
         {/* 1. TOP PROFILE & WALLET BAR                          */}
         {/* ==================================================== */}
         <View style={styles.header}>
-          <View style={styles.profileSection}>
+          <TouchableOpacity
+            style={styles.profileSection}
+            activeOpacity={0.8}
+            onPress={() => setShowLoginModal(true)}
+          >
             {/* Avatar with level badge */}
             <View style={styles.avatarWrapper}>
-              <View style={styles.avatarCircle}>
-                <Ionicons name="person" size={24} color="#A3BFAC" />
+              <View style={[styles.avatarCircle, { backgroundColor: avatarColor }]}>
+                <Text style={styles.avatarEmojiText}>{avatarEmoji}</Text>
               </View>
               <View style={styles.levelBadge}>
-                <Text style={styles.levelText}>1</Text>
+                <Text style={styles.levelText}>{level}</Text>
               </View>
             </View>
 
             {/* Username & XP Bar */}
             <View style={styles.userInfo}>
-              <Text style={styles.username}>monitoralk</Text>
+              <View style={styles.userNameRow}>
+                <Text style={styles.username}>{username}</Text>
+                <Feather name="edit-2" size={11} color="#D4AF37" style={{ marginLeft: 4 }} />
+              </View>
               <View style={styles.xpRow}>
-                <Text style={styles.levelLabel}>Niv. 1</Text>
-                <Text style={styles.xpText}>0 / 2000 XP</Text>
+                <Text style={styles.levelLabel}>Niv. {level}</Text>
+                <Text style={styles.xpText}>{xp} / {xpTarget} XP</Text>
               </View>
               <View style={styles.xpTrack}>
-                <View style={[styles.xpFill, { width: '15%' }]} />
+                <View style={[styles.xpFill, { width: `${xpPercent}%` }]} />
               </View>
             </View>
-          </View>
+          </TouchableOpacity>
 
           {/* Wallet & Settings */}
           <View style={styles.headerRight}>
@@ -81,13 +101,13 @@ export default function HomeScreen() {
               <Text style={styles.coinAmount}>
                 {coins >= 1000 ? `${(coins / 1000).toFixed(1)}K` : coins}
               </Text>
-              <TouchableOpacity style={styles.coinAddBtn}>
-                <Feather name="plus" size={12} color="#1A1405" />
-              </TouchableOpacity>
             </View>
 
-            <TouchableOpacity style={styles.settingsBtn}>
-              <Feather name="settings" size={20} color="#8DA896" />
+            <TouchableOpacity
+              style={styles.settingsBtn}
+              onPress={() => setShowLoginModal(true)}
+            >
+              <Feather name="user" size={18} color="#D4AF37" />
             </TouchableOpacity>
           </View>
         </View>
@@ -178,11 +198,17 @@ export default function HomeScreen() {
         <RewardedAdModal
           visible={showAdModal}
           rewardAmount={100}
-          onRewardEarned={(reward) => {
-            setCoins((c) => c + reward);
+          onRewardEarned={async (reward) => {
+            await updateCoins(reward);
             setAdsWatched((w) => w + 1);
           }}
           onClose={() => setShowAdModal(false)}
+        />
+
+        {/* Login & Profile Customizer Modal */}
+        <LoginModal
+          visible={showLoginModal}
+          onClose={() => setShowLoginModal(false)}
         />
 
         {/* ==================================================== */}
@@ -347,6 +373,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  avatarEmojiText: {
+    fontSize: 22,
+  },
   levelBadge: {
     position: 'absolute',
     bottom: -2,
@@ -367,6 +396,10 @@ const styles = StyleSheet.create({
   },
   userInfo: {
     gap: 3,
+  },
+  userNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   username: {
     color: '#FFF',

@@ -11,6 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
+import { GameArena } from '@/components/game/GameArena';
 import colors from '@/constants/colors';
 
 interface Friend {
@@ -36,6 +37,18 @@ export default function FriendsScreen() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newFriendUsername, setNewFriendUsername] = useState('');
   const [invitedId, setInvitedId] = useState<string | null>(null);
+  const [activeGame, setActiveGame] = useState(false);
+  const [opponentName, setOpponentName] = useState('CH AMINE');
+
+  if (activeGame) {
+    return (
+      <GameArena
+        gameMode="chkobba"
+        opponentName={opponentName}
+        onBackToLobby={() => setActiveGame(false)}
+      />
+    );
+  }
 
   // Initial friends matching Tunisian players
   const [friendsList, setFriendsList] = useState<Friend[]>([
@@ -103,11 +116,27 @@ export default function FriendsScreen() {
   );
 
   const handleInviteFriend = (friend: Friend) => {
-    setInvitedId(friend.id);
-    setTimeout(() => setInvitedId(null), 3000);
     Alert.alert(
-      'Invitation envoyée',
-      `Une invitation à rejoindre votre table a été envoyée à ${friend.username} !`,
+      `Défier ${friend.username}`,
+      `Que souhaitez-vous faire avec ${friend.username} ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: '📩 Inviter',
+          onPress: () => {
+            setInvitedId(friend.id);
+            setTimeout(() => setInvitedId(null), 3000);
+            Alert.alert('Invitation envoyée', `Invitation envoyée à ${friend.username} !`);
+          },
+        },
+        {
+          text: '⚡ Jouer Maintenant',
+          onPress: () => {
+            setOpponentName(friend.username);
+            setActiveGame(true);
+          },
+        },
+      ]
     );
   };
 
