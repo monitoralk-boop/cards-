@@ -4,13 +4,12 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Platform,
+  Image,
 } from 'react-native';
 import {
   RenderSuitIcon,
   SuitType,
   CardBackPattern,
-  TunisianJackIllustration,
 } from './CardSuits';
 
 export interface PlayingCardProps {
@@ -25,6 +24,38 @@ export interface PlayingCardProps {
   elevationOffset?: number;
 }
 
+// Map of real card image assets provided by the user
+const CARD_IMAGE_ASSETS: Record<string, any> = {
+  // Jack of Spades (Chbik)
+  'spade_8': require('../../assets/cards/jack_spades.png'),
+  'spades_8': require('../../assets/cards/jack_spades.png'),
+  'spades_11': require('../../assets/cards/jack_spades.png'),
+
+  // Jack of Clubs (Valet de Trèfle)
+  'bastoni_8': require('../../assets/cards/jack_clubs.png'),
+  'clubs_8': require('../../assets/cards/jack_clubs.png'),
+  'clubs_11': require('../../assets/cards/jack_clubs.png'),
+
+  // 7 of Clubs (7 de Trèfle)
+  'bastoni_7': require('../../assets/cards/7_clubs.png'),
+  'clubs_7': require('../../assets/cards/7_clubs.png'),
+
+  // Queen of Diamonds (Dame de Carreau)
+  'dineri_9': require('../../assets/cards/queen_diamonds.png'),
+  'diamonds_9': require('../../assets/cards/queen_diamonds.png'),
+  'diamonds_12': require('../../assets/cards/queen_diamonds.png'),
+
+  // Queen of Hearts (Dame de Cœur)
+  'coupe_9': require('../../assets/cards/queen_hearts.png'),
+  'hearts_9': require('../../assets/cards/queen_hearts.png'),
+  'hearts_12': require('../../assets/cards/queen_hearts.png'),
+
+  // King of Hearts (Roi de Cœur)
+  'coupe_10': require('../../assets/cards/king_hearts.png'),
+  'hearts_10': require('../../assets/cards/king_hearts.png'),
+  'hearts_13': require('../../assets/cards/king_hearts.png'),
+};
+
 export const PlayingCard: React.FC<PlayingCardProps> = ({
   suit,
   rank,
@@ -35,17 +66,17 @@ export const PlayingCard: React.FC<PlayingCardProps> = ({
   height = 98,
   disabled = false,
 }) => {
-  // Determine displayed rank string
+  // Display string for the rank
   const getRankDisplay = (val: number): string => {
     switch (val) {
       case 1:
-        return '1'; // In Tunisian card games, Ace is usually '1'
+        return '1'; // In Tunisian card games, Ace is '1'
       case 8:
-        return 'J'; // Valet / Fante
+        return 'J'; // Valet
       case 9:
-        return 'Q'; // Cavalier / Reine / Dama
+        return 'Q'; // Dame
       case 10:
-        return 'K'; // Roi / Re
+        return 'K'; // Roi
       case 11:
         return 'J';
       case 12:
@@ -57,17 +88,14 @@ export const PlayingCard: React.FC<PlayingCardProps> = ({
     }
   };
 
-  const isRedSuit = suit === 'hearts' || suit === 'diamonds';
-  const isSabaaElHaya = suit === 'dineri' && rank === 7;
-  const isJackSpade =
-    (suit === 'spade' || suit === 'spades') && (rank === 8 || rank === 11);
+  const isRedSuit =
+    suit === 'hearts' || suit === 'diamonds' || suit === 'dineri' || suit === 'coupe';
+  const isSabaaElHaya =
+    (suit === 'dineri' || suit === 'diamonds') && rank === 7;
 
-  const rankColor = isRedSuit
-    ? '#C5221F'
-    : suit === 'dineri'
-    ? '#8A5E04'
-    : '#1C1917';
+  const rankColor = isRedSuit ? '#C5221F' : '#1C1917';
 
+  // Face down (Card back)
   if (isFaceDown) {
     return (
       <View
@@ -85,6 +113,62 @@ export const PlayingCard: React.FC<PlayingCardProps> = ({
     );
   }
 
+  // Check if a real image asset exists for this card
+  const cardKey = `${suit}_${rank}`;
+  const localImage = CARD_IMAGE_ASSETS[cardKey];
+
+  if (localImage) {
+    const imageCardContent = (
+      <View
+        style={[
+          styles.cardBase,
+          styles.cardFace,
+          {
+            width,
+            height,
+            borderColor: isSelected
+              ? '#F59E0B'
+              : isSabaaElHaya
+              ? '#D4AF37'
+              : '#D6CDB8',
+            borderWidth: isSelected ? 2.5 : 1.2,
+            transform: [{ translateY: isSelected ? -16 : 0 }],
+            shadowOpacity: isSelected ? 0.45 : 0.2,
+            shadowRadius: isSelected ? 10 : 4,
+            elevation: isSelected ? 12 : 3,
+            backgroundColor: '#FAF7EE',
+            padding: 2,
+          },
+        ]}
+      >
+        {isSabaaElHaya && (
+          <View style={styles.sabaaHayaBadge}>
+            <Text style={styles.sabaaHayaText}>★ 7 الحيّة</Text>
+          </View>
+        )}
+        <Image
+          source={localImage}
+          style={{ width: '100%', height: '100%', borderRadius: 6 }}
+          resizeMode="contain"
+        />
+      </View>
+    );
+
+    if (onPress && !disabled) {
+      return (
+        <TouchableOpacity
+          activeOpacity={0.88}
+          onPress={onPress}
+          style={styles.touchableWrapper}
+        >
+          {imageCardContent}
+        </TouchableOpacity>
+      );
+    }
+    return imageCardContent;
+  }
+
+  // Vector render for other cards in the classic French café style
   const cardContent = (
     <View
       style={[
@@ -106,14 +190,14 @@ export const PlayingCard: React.FC<PlayingCardProps> = ({
         },
       ]}
     >
-      {/* Sabaa El Haya Golden Ribbon Glow */}
+      {/* Sabaa El Haya Golden Ribbon */}
       {isSabaaElHaya && (
         <View style={styles.sabaaHayaBadge}>
           <Text style={styles.sabaaHayaText}>★ 7 الحيّة</Text>
         </View>
       )}
 
-      {/* Top Left Rank & Suit Badge */}
+      {/* Top Left Rank & Suit */}
       <View style={styles.cornerTopLeft}>
         <Text style={[styles.rankText, { color: rankColor }]}>
           {getRankDisplay(rank)}
@@ -123,14 +207,31 @@ export const PlayingCard: React.FC<PlayingCardProps> = ({
         </View>
       </View>
 
-      {/* Center Art */}
+      {/* Center Art / Pips */}
       <View style={styles.centerArt}>
-        {isJackSpade && width >= 60 ? (
-          <TunisianJackIllustration width={width * 0.72} height={height * 0.7} />
+        {rank === 7 ? (
+          // 7-pips arrangement (like the traditional 7 of Clubs)
+          <View style={styles.sevenPipsContainer}>
+            <View style={styles.pipsRow}>
+              <RenderSuitIcon suit={suit} size={width > 60 ? 13 : 10} />
+              <RenderSuitIcon suit={suit} size={width > 60 ? 13 : 10} />
+            </View>
+            <View style={styles.pipsCenterRow}>
+              <RenderSuitIcon suit={suit} size={width > 60 ? 13 : 10} />
+            </View>
+            <View style={styles.pipsRow}>
+              <RenderSuitIcon suit={suit} size={width > 60 ? 13 : 10} />
+              <RenderSuitIcon suit={suit} size={width > 60 ? 13 : 10} />
+            </View>
+            <View style={styles.pipsRow}>
+              <RenderSuitIcon suit={suit} size={width > 60 ? 13 : 10} />
+              <RenderSuitIcon suit={suit} size={width > 60 ? 13 : 10} />
+            </View>
+          </View>
         ) : (
           <RenderSuitIcon
             suit={suit}
-            size={Math.min(width * 0.48, height * 0.45)}
+            size={Math.min(width * 0.46, height * 0.42)}
           />
         )}
       </View>
@@ -179,47 +280,65 @@ const styles = StyleSheet.create({
     padding: 3,
   },
   cornerTopLeft: {
-    alignItems: 'center',
     position: 'absolute',
     top: 4,
     left: 4,
+    alignItems: 'center',
+    gap: 1,
   },
   cornerBottomRight: {
-    alignItems: 'center',
     position: 'absolute',
     bottom: 4,
     right: 4,
+    alignItems: 'center',
+    gap: 1,
     transform: [{ rotate: '180deg' }],
   },
   rankText: {
-    fontSize: 16,
-    fontWeight: '800',
-    fontFamily: Platform.select({ ios: 'Arial-BoldMT', default: 'sans-serif' }),
-    lineHeight: 18,
+    fontSize: 14,
+    fontWeight: '900',
+    fontFamily: 'sans-serif',
   },
   suitIconWrapper: {
-    marginTop: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   centerArt: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  sevenPipsContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    width: '65%',
+  },
+  pipsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  pipsCenterRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    width: '100%',
+  },
   sabaaHayaBadge: {
     position: 'absolute',
-    top: 2,
-    right: 2,
-    backgroundColor: 'rgba(212, 175, 55, 0.25)',
-    borderColor: '#D4AF37',
-    borderWidth: 0.8,
-    borderRadius: 4,
-    paddingHorizontal: 3,
+    top: 1,
+    right: 1,
+    backgroundColor: '#D4AF37',
+    paddingHorizontal: 4,
     paddingVertical: 1,
+    borderRadius: 4,
     zIndex: 10,
+    borderWidth: 0.8,
+    borderColor: '#78350F',
   },
   sabaaHayaText: {
-    color: '#8A5E04',
+    color: '#1A1405',
     fontSize: 8,
-    fontWeight: '700',
+    fontWeight: '900',
   },
 });

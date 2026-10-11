@@ -376,21 +376,17 @@ export const CardBackPattern: React.FC<{ width: number; height: number; theme?: 
 export const RenderSuitIcon: React.FC<{ suit: SuitType; size?: number }> = ({ suit, size = 20 }) => {
   switch (suit) {
     case 'spades':
+    case 'spade':
       return <SpadesIcon size={size} color="#1C1917" />;
     case 'hearts':
+    case 'coupe':
       return <HeartsIcon size={size} color="#C5221F" />;
     case 'diamonds':
+    case 'dineri':
       return <DiamondsIcon size={size} color="#C5221F" />;
     case 'clubs':
-      return <ClubsIcon size={size} color="#1C1917" />;
-    case 'dineri':
-      return <DineriIcon size={size} />;
-    case 'coupe':
-      return <CoupeIcon size={size} />;
     case 'bastoni':
-      return <BastoniIcon size={size} />;
-    case 'spade':
-      return <TunisianSpadeIcon size={size} />;
+      return <ClubsIcon size={size} color="#1C1917" />;
     default:
       return null;
   }
