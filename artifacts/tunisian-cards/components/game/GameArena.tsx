@@ -326,6 +326,11 @@ export const GameArena: React.FC<GameArenaProps> = ({
       <View style={styles.arenaContainer}>
         <View style={styles.woodFrame}>
           <View style={styles.feltMat}>
+            <View pointerEvents="none" style={styles.feltInnerBorder} />
+            <View pointerEvents="none" style={styles.tableMedallion}>
+              <View style={styles.medallionRing} />
+              <Text style={styles.medallionMark}>✦</Text>
+            </View>
             {/* Left Action Drawer */}
             <View style={styles.leftActionDrawer}>
               <TouchableOpacity onPress={onBackToLobby} style={styles.drawerButton}>
@@ -407,8 +412,8 @@ export const GameArena: React.FC<GameArenaProps> = ({
                         <PlayingCard
                           suit={card.suit}
                           rank={card.rank}
-                          width={56}
-                          height={80}
+                          width={Math.min(62, Math.max(48, (SCREEN_WIDTH - 150) / 4))}
+                          height={Math.min(88, Math.max(68, (SCREEN_WIDTH - 150) / 4 * 1.42))}
                         />
                         {isCapturable && (
                           <View style={styles.captureIndicatorPill}>
@@ -797,14 +802,47 @@ const styles = StyleSheet.create({
   },
   feltMat: {
     flex: 1,
-    backgroundColor: '#3E1220',
+    backgroundColor: '#0B3827',
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#601F32',
+    borderColor: '#23613F',
     position: 'relative',
     justifyContent: 'space-between',
     paddingVertical: 8,
     paddingHorizontal: 8,
+    overflow: 'hidden',
+  },
+  feltInnerBorder: {
+    ...StyleSheet.absoluteFill,
+    margin: 7,
+    borderWidth: 1,
+    borderColor: 'rgba(225, 189, 82, 0.18)',
+    borderRadius: 10,
+  },
+  tableMedallion: {
+    position: 'absolute',
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    borderWidth: 1,
+    borderColor: 'rgba(225, 189, 82, 0.12)',
+    alignSelf: 'center',
+    top: '50%',
+    marginTop: -85,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  medallionRing: {
+    position: 'absolute',
+    width: 148,
+    height: 148,
+    borderRadius: 74,
+    borderWidth: 1,
+    borderColor: 'rgba(225, 189, 82, 0.10)',
+  },
+  medallionMark: {
+    color: 'rgba(225, 189, 82, 0.12)',
+    fontSize: 52,
   },
   leftActionDrawer: {
     position: 'absolute',
@@ -946,8 +984,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: 8,
-    minHeight: 90,
+    gap: 10,
+    minHeight: 100,
+    paddingHorizontal: 28,
+    paddingVertical: 8,
     alignItems: 'center',
   },
   emptyTablePlaceholder: {
