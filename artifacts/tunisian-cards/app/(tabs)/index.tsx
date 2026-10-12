@@ -335,15 +335,15 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#0A2114',
+    backgroundColor: '#081B12',
   },
   container: {
     flex: 1,
-    backgroundColor: '#0D2818',
+    backgroundColor: '#0A2114',
   },
   scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingHorizontal: 18,
+    paddingTop: 16,
     paddingBottom: 90,
   },
 
@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 10,
-    marginBottom: 12,
+    marginBottom: 18,
   },
   profileSection: {
     flexDirection: 'row',
@@ -475,10 +475,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#123321',
-    borderRadius: 14,
+    backgroundColor: '#102D1E',
+    borderRadius: 18,
     padding: 14,
-    borderColor: '#1D4A30',
+    borderColor: '#28563A',
     borderWidth: 1,
     marginBottom: 20,
   },
@@ -547,7 +547,7 @@ const styles = StyleSheet.create({
 
   // 3. Section Header
   sectionHeader: {
-    marginBottom: 12,
+    marginBottom: 16,
   },
   sectionTitleRow: {
     flexDirection: 'row',
@@ -570,31 +570,40 @@ const styles = StyleSheet.create({
 
   // 4. Game Card
   gameCard: {
-    backgroundColor: '#123321',
-    borderRadius: 16,
-    borderColor: '#1D4A30',
+    backgroundColor: '#102D1E',
+    borderRadius: 20,
+    borderColor: '#28563A',
     borderWidth: 1,
     overflow: 'hidden',
-    marginBottom: 16,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 7 },
+    shadowOpacity: 0.24,
+    shadowRadius: 12,
+    elevation: 5,
   },
   gameBannerArea: {
-    height: 100,
-    backgroundColor: '#0F2C1C',
-    padding: 14,
+    height: 124,
+    backgroundColor: '#123B27',
+    padding: 16,
     justifyContent: 'space-between',
     borderBottomWidth: 1,
-    borderBottomColor: '#174026',
+    borderBottomColor: '#28563A',
     position: 'relative',
   },
   ramiBanner: {
     backgroundColor: '#16281E',
   },
   gameBannerTitle: {
-    color: 'rgba(212, 175, 55, 0.45)',
-    fontSize: 32,
+    color: '#E8C85E',
+    fontSize: 34,
     fontWeight: '900',
     textAlign: 'center',
-    marginTop: 10,
+    marginTop: 14,
+    letterSpacing: 1.2,
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   gamePillTags: {
     flexDirection: 'row',
@@ -619,26 +628,26 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   gameCardBody: {
-    padding: 14,
-    gap: 8,
+    padding: 16,
+    gap: 9,
   },
   gameName: {
     color: '#FFF',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '800',
   },
   gameDetails: {
     color: '#8DA896',
-    fontSize: 12,
+    fontSize: 13,
     marginBottom: 4,
   },
   quickPlayBtn: {
-    backgroundColor: '#D4AF37',
-    paddingVertical: 12,
-    borderRadius: 10,
+    backgroundColor: '#E0BD4F',
+    paddingVertical: 14,
+    borderRadius: 12,
     alignItems: 'center',
     shadowColor: '#D4AF37',
-    shadowOpacity: 0.35,
+    shadowOpacity: 0.24,
     shadowRadius: 6,
     elevation: 3,
   },

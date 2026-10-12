@@ -11,8 +11,10 @@ import {
   SuitType,
   CardBackPattern,
 } from './CardSuits';
+import { getCardArtwork } from './CardArtwork';
 
 export interface PlayingCardProps {
+  gameMode?: 'chkobba' | 'rami';
   suit: SuitType;
   rank: number; // 1-10 for Chkobba, 1-13 for standard/Rami
   isFaceDown?: boolean;
@@ -24,39 +26,8 @@ export interface PlayingCardProps {
   elevationOffset?: number;
 }
 
-// Map of real card image assets provided by the user
-const CARD_IMAGE_ASSETS: Record<string, any> = {
-  // Jack of Spades (Chbik)
-  'spade_8': require('../../assets/cards/jack_spades.png'),
-  'spades_8': require('../../assets/cards/jack_spades.png'),
-  'spades_11': require('../../assets/cards/jack_spades.png'),
-
-  // Jack of Clubs (Valet de Trèfle)
-  'bastoni_8': require('../../assets/cards/jack_clubs.png'),
-  'clubs_8': require('../../assets/cards/jack_clubs.png'),
-  'clubs_11': require('../../assets/cards/jack_clubs.png'),
-
-  // 7 of Clubs (7 de Trèfle)
-  'bastoni_7': require('../../assets/cards/7_clubs.png'),
-  'clubs_7': require('../../assets/cards/7_clubs.png'),
-
-  // Queen of Diamonds (Dame de Carreau)
-  'dineri_9': require('../../assets/cards/queen_diamonds.png'),
-  'diamonds_9': require('../../assets/cards/queen_diamonds.png'),
-  'diamonds_12': require('../../assets/cards/queen_diamonds.png'),
-
-  // Queen of Hearts (Dame de Cœur)
-  'coupe_9': require('../../assets/cards/queen_hearts.png'),
-  'hearts_9': require('../../assets/cards/queen_hearts.png'),
-  'hearts_12': require('../../assets/cards/queen_hearts.png'),
-
-  // King of Hearts (Roi de Cœur)
-  'coupe_10': require('../../assets/cards/king_hearts.png'),
-  'hearts_10': require('../../assets/cards/king_hearts.png'),
-  'hearts_13': require('../../assets/cards/king_hearts.png'),
-};
-
 export const PlayingCard: React.FC<PlayingCardProps> = ({
+  gameMode = 'chkobba',
   suit,
   rank,
   isFaceDown = false,
@@ -72,11 +43,11 @@ export const PlayingCard: React.FC<PlayingCardProps> = ({
       case 1:
         return '1'; // In Tunisian card games, Ace is '1'
       case 8:
-        return 'J'; // Valet
+        return gameMode === 'chkobba' ? 'J' : '8';
       case 9:
-        return 'Q'; // Dame
+        return gameMode === 'chkobba' ? 'Q' : '9';
       case 10:
-        return 'K'; // Roi
+        return gameMode === 'chkobba' ? 'K' : '10';
       case 11:
         return 'J';
       case 12:
@@ -91,7 +62,7 @@ export const PlayingCard: React.FC<PlayingCardProps> = ({
   const isRedSuit =
     suit === 'hearts' || suit === 'diamonds' || suit === 'dineri' || suit === 'coupe';
   const isSabaaElHaya =
-    (suit === 'dineri' || suit === 'diamonds') && rank === 7;
+    gameMode === 'chkobba' && (suit === 'dineri' || suit === 'diamonds') && rank === 7;
 
   const rankColor = isRedSuit ? '#C5221F' : '#1C1917';
 
@@ -114,8 +85,7 @@ export const PlayingCard: React.FC<PlayingCardProps> = ({
   }
 
   // Check if a real image asset exists for this card
-  const cardKey = `${suit}_${rank}`;
-  const localImage = CARD_IMAGE_ASSETS[cardKey];
+  const localImage = getCardArtwork(gameMode, suit, rank);
 
   if (localImage) {
     const imageCardContent = (
@@ -268,16 +238,21 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   cardBase: {
-    borderRadius: 8,
+    borderRadius: 10,
     overflow: 'hidden',
     position: 'relative',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.24,
+    shadowRadius: 5,
+    elevation: 4,
   },
   cardFace: {
-    backgroundColor: '#FAF7EE',
+    backgroundColor: '#FFFDF7',
     justifyContent: 'space-between',
-    padding: 3,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: '#E7DFC9',
   },
   cornerTopLeft: {
     position: 'absolute',
@@ -295,9 +270,10 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '180deg' }],
   },
   rankText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '900',
     fontFamily: 'sans-serif',
+    lineHeight: 17,
   },
   suitIconWrapper: {
     alignItems: 'center',

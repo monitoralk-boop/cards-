@@ -11,6 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { PlayingCard } from './PlayingCard';
 import {
   ChkobbaCard,
@@ -182,10 +183,10 @@ export const GameArena: React.FC<GameArenaProps> = ({
   };
 
   // 4. Handle Player playing a card
-  const handlePlayerPlayCard = () => {
-    if (!selectedCardId || !isPlayerTurn || isBotThinking) return;
+  const handlePlayerPlayCard = (cardId: string | null = selectedCardId) => {
+    if (!cardId || !isPlayerTurn || isBotThinking) return;
 
-    const playedCard = playerHand.find((c) => c.id === selectedCardId);
+    const playedCard = playerHand.find((c) => c.id === cardId);
     if (!playedCard) return;
 
     const isLastCardOfRound = drawDeck.length === 0 && playerHand.length === 1 && opponentHand.length === 0;
@@ -379,6 +380,7 @@ export const GameArena: React.FC<GameArenaProps> = ({
               {/* Draw Pile */}
               <View style={styles.deckPileWrapper}>
                 <PlayingCard
+                  gameMode={gameMode}
                   suit="spade"
                   rank={1}
                   isFaceDown
@@ -410,6 +412,7 @@ export const GameArena: React.FC<GameArenaProps> = ({
                         ]}
                       >
                         <PlayingCard
+                          gameMode={gameMode}
                           suit={card.suit}
                           rank={card.rank}
                           width={Math.min(62, Math.max(48, (SCREEN_WIDTH - 150) / 4))}
@@ -492,6 +495,19 @@ export const GameArena: React.FC<GameArenaProps> = ({
           >
             {playerHand.map((card, index) => {
               const isSelected = selectedCardId === card.id;
+              const cardGesture = Gesture.Pan()
+                .enabled(gameMode === 'chkobba')
+                .activeOffsetY(-12)
+                .failOffsetX([-24, 24])
+                .onEnd((event) => {
+                  if (
+                    event.translationY < -45 &&
+                    isPlayerTurn &&
+                    !isBotThinking
+                  ) {
+                    handlePlayerPlayCard(card.id);
+                  }
+                });
               return (
                 <View
                   key={card.id}
@@ -503,17 +519,22 @@ export const GameArena: React.FC<GameArenaProps> = ({
                     },
                   ]}
                 >
-                  <PlayingCard
-                    suit={card.suit}
-                    rank={card.rank}
-                    isSelected={isSelected}
-                    width={64}
-                    height={92}
-                    onPress={() => {
-                      if (!isPlayerTurn || isBotThinking) return;
-                      setSelectedCardId(isSelected ? null : card.id);
-                    }}
-                  />
+                  <GestureDetector gesture={cardGesture}>
+                    <View>
+                      <PlayingCard
+                        gameMode={gameMode}
+                        suit={card.suit}
+                        rank={card.rank}
+                        isSelected={isSelected}
+                        width={64}
+                        height={92}
+                        onPress={() => {
+                          if (!isPlayerTurn || isBotThinking) return;
+                          setSelectedCardId(isSelected ? null : card.id);
+                        }}
+                      />
+                    </View>
+                  </GestureDetector>
                 </View>
               );
             })}
