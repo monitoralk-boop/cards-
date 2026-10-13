@@ -8,6 +8,7 @@ import {
   SafeAreaView,
   StatusBar,
   Modal,
+  Alert,
 } from 'react-native';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { GameArena } from '@/components/game/GameArena';
@@ -303,23 +304,23 @@ export default function HomeScreen() {
             </Text>
 
             <TouchableOpacity
-              onPress={() => setActiveGame('rami')}
-              style={styles.quickPlayBtn}
+              onPress={() => Alert.alert('Rami indisponible', 'Le mode Rami et ses règles ne sont pas encore implémentés. Jouez à Chkobba pour le moment.')}
+              style={[styles.quickPlayBtn, { opacity: 0.65 }]}
             >
               <Text style={styles.quickPlayText}>⚡ Partie rapide</Text>
             </TouchableOpacity>
 
             <View style={styles.secondaryBtnRow}>
               <TouchableOpacity
-                onPress={() => setActiveGame('rami')}
-                style={styles.subActionBtn}
+              onPress={() => Alert.alert('Rami indisponible', 'Le mode Rami et ses règles ne sont pas encore implémentés.')}
+                style={[styles.subActionBtn, { opacity: 0.65 }]}
               >
                 <Feather name="plus-circle" size={14} color="#FDE68A" />
                 <Text style={styles.subActionText}>Créer</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={() => setActiveGame('rami')}
-                style={styles.subActionBtn}
+              onPress={() => Alert.alert('Rami indisponible', 'Le mode Rami et ses règles ne sont pas encore implémentés.')}
+                style={[styles.subActionBtn, { opacity: 0.65 }]}
               >
                 <Feather name="log-in" size={14} color="#FDE68A" />
                 <Text style={styles.subActionText}>Rejoindre</Text>

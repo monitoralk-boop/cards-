@@ -69,8 +69,6 @@ export const GameArena: React.FC<GameArenaProps> = ({
   const [roundResult, setRoundResult] = useState<RoundResult | null>(null);
 
   // Rami specific state
-  const [ramiDrawn, setRamiDrawn] = useState(false);
-
   // 1. Initialize fresh game round
   const startNewRound = () => {
     const deal = initialDeal();
@@ -467,7 +465,7 @@ export const GameArena: React.FC<GameArenaProps> = ({
           {/* Action Button: Play / Throw */}
           <TouchableOpacity
             disabled={!selectedCardId || !isPlayerTurn || isBotThinking}
-            onPress={handlePlayerPlayCard}
+            onPress={() => handlePlayerPlayCard()}
             style={[
               styles.primaryPlayButton,
               (!selectedCardId || !isPlayerTurn || isBotThinking) &&

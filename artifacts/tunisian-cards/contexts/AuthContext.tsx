@@ -27,6 +27,7 @@ interface AuthContextType {
   isLoading: boolean;
   isLoggedIn: boolean;
   loginAsGuest: (username: string, avatarColor?: string, avatarEmoji?: string) => Promise<void>;
+  loginAsTestUser: () => Promise<void>;
   loginWithPhone: (phone: string, otp: string) => Promise<boolean>;
   loginWithEmail: (email: string, pass: string) => Promise<boolean>;
   logout: () => Promise<void>;
@@ -36,9 +37,9 @@ interface AuthContextType {
 
 const STORAGE_KEY = '@tunisian_cards_user_session';
 
-const defaultUser: UserProfile = {
-  id: 'usr-1',
-  username: 'monitoralk',
+const testUser: UserProfile = {
+  id: 'test-player',
+  username: 'Test Player',
   level: 1,
   xp: 350,
   xpTarget: 2000,
@@ -60,6 +61,7 @@ const AuthContext = createContext<AuthContextType>({
   isLoading: true,
   isLoggedIn: false,
   loginAsGuest: async () => {},
+  loginAsTestUser: async () => {},
   loginWithPhone: async () => false,
   loginWithEmail: async () => false,
   logout: async () => {},
@@ -81,12 +83,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (data) {
         setUser(JSON.parse(data));
       } else {
-        // Automatically seed with default monitoralk profile on first load
-        setUser(defaultUser);
-        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(defaultUser));
+        setUser(null);
       }
     } catch (e) {
-      setUser(defaultUser);
+      setUser(null);
     } finally {
       setIsLoading(false);
     }
@@ -128,53 +128,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const loginWithPhone = async (phone: string, otp: string): Promise<boolean> => {
-    if (otp.length < 4) return false;
-    const phoneUser: UserProfile = {
-      id: `usr-tel-${Date.now()}`,
-      username: `TN_${phone.slice(-4)}`,
-      level: 1,
-      xp: 100,
-      xpTarget: 2000,
-      coins: 1500, // +500 bonus for verified phone
-      avatarColor: '#1A4A2D',
-      avatarEmoji: '📱',
-      isGuest: false,
-      phone,
-      stats: {
-        gamesPlayed: 0,
-        gamesWon: 0,
-        chkobbaSweeps: 0,
-        sbaaElHayaCaptures: 0,
-        totalPoints: 0,
-      },
-    };
-    await saveUser(phoneUser);
-    return true;
+    // Phone verification requires a real SMS provider; never accept a fabricated OTP.
+    if (phone.length < 8 || otp.length !== 4) return false;
+    return false;
   };
 
-  const loginWithEmail = async (email: string, _pass: string): Promise<boolean> => {
-    const username = email.split('@')[0] || 'Joueur';
-    const emailUser: UserProfile = {
-      id: `usr-em-${Date.now()}`,
-      username,
-      level: 1,
-      xp: 150,
-      xpTarget: 2000,
-      coins: 1500,
-      avatarColor: '#0E4829',
-      avatarEmoji: '🃏',
-      isGuest: false,
-      email,
-      stats: {
-        gamesPlayed: 0,
-        gamesWon: 0,
-        chkobbaSweeps: 0,
-        sbaaElHayaCaptures: 0,
-        totalPoints: 0,
-      },
-    };
-    await saveUser(emailUser);
-    return true;
+  const loginWithEmail = async (_email: string, _pass: string): Promise<boolean> => {
+    // No authentication backend is configured, so do not create a fake authenticated account.
+    return false;
+  };
+
+  const loginAsTestUser = async () => {
+    await saveUser({ ...testUser, stats: { ...testUser.stats } });
   };
 
   const logout = async () => {
@@ -239,6 +204,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         isLoggedIn: Boolean(user),
         loginAsGuest,
+        loginAsTestUser,
         loginWithPhone,
         loginWithEmail,
         logout,

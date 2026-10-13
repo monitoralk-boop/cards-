@@ -99,6 +99,10 @@ export default function GamesScreen() {
     if (!joinCode.trim()) return;
     const found = rooms.find((r) => r.code.toUpperCase() === joinCode.trim().toUpperCase());
     if (found) {
+      if (found.gameType === 'rami') {
+        Alert.alert('Rami indisponible', 'Les règles Rami ne sont pas encore implémentées. Cette table ne peut pas être lancée.');
+        return;
+      }
       setActiveGameMode(found.gameType);
     } else {
       Alert.alert('Table introuvable', 'Vérifiez le code de la table.');
@@ -106,6 +110,10 @@ export default function GamesScreen() {
   };
 
   const handleCreateRoom = () => {
+    if (newRoomType === 'rami') {
+      Alert.alert('Rami indisponible', 'La création de tables Rami est désactivée jusqu’à l’implémentation complète du jeu.');
+      return;
+    }
     const code = Math.random().toString(36).substring(2, 7).toUpperCase();
     const newRoom: Room = {
       id: `r-${Date.now()}`,
@@ -253,7 +261,9 @@ export default function GamesScreen() {
                 </View>
 
                 <TouchableOpacity
-                  onPress={() => setActiveGameMode(room.gameType)}
+                  onPress={() => room.gameType === 'rami'
+                    ? Alert.alert('Rami indisponible', 'Les règles Rami ne sont pas encore implémentées.')
+                    : setActiveGameMode(room.gameType)}
                   style={styles.enterTableBtn}
                 >
                   <Text style={styles.enterTableBtnText}>Prendre place</Text>
@@ -288,13 +298,10 @@ export default function GamesScreen() {
                     <Text style={styles.toggleText}>Chkobba</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    onPress={() => setNewRoomType('rami')}
-                    style={[
-                      styles.toggleOption,
-                      newRoomType === 'rami' && styles.toggleOptionActive,
-                    ]}
+                    onPress={() => Alert.alert('Rami indisponible', 'Les règles Rami ne sont pas encore implémentées. Seules les tables Chkobba peuvent être créées.')}
+                    style={[styles.toggleOption, { opacity: 0.5 }]}
                   >
-                    <Text style={styles.toggleText}>Rami</Text>
+                    <Text style={styles.toggleText}>Rami · bientôt</Text>
                   </TouchableOpacity>
                 </View>
               </View>

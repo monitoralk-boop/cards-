@@ -23,12 +23,12 @@ const AVATAR_COLORS = ['#163E27', '#8E24AA', '#1976D2', '#D84315', '#C2185B', '#
 const AVATAR_EMOJIS = ['👑', '🇹🇳', '🃏', '🦅', '🦁', '☕', '🌟', '🎯'];
 
 export const LoginModal: React.FC<LoginModalProps> = ({ visible, onClose }) => {
-  const { user, loginAsGuest, loginWithPhone, loginWithEmail } = useAuth();
+  const { user, loginAsGuest, loginAsTestUser } = useAuth();
 
   const [activeTab, setActiveTab] = useState<'guest' | 'phone' | 'email'>('guest');
 
   // Guest inputs
-  const [guestName, setGuestName] = useState(user?.username || 'monitoralk');
+  const [guestName, setGuestName] = useState(user?.username || '');
   const [selectedColor, setSelectedColor] = useState(user?.avatarColor || AVATAR_COLORS[0]);
   const [selectedEmoji, setSelectedEmoji] = useState(user?.avatarEmoji || AVATAR_EMOJIS[0]);
 
@@ -42,13 +42,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({ visible, onClose }) => {
   }, [user, visible]);
 
   // Phone inputs
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpCode, setOtpCode] = useState('');
-
-  // Email inputs
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
 
   const handleGuestSubmit = async () => {
     if (!guestName.trim()) {
@@ -59,35 +52,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({ visible, onClose }) => {
     if (onClose) onClose();
   };
 
-  const handleSendOtp = () => {
-    if (phoneNumber.length < 8) {
-      Alert.alert('Numéro invalide', 'Veuillez entrer un numéro tunisien valide (8 chiffres).');
-      return;
-    }
-    setOtpSent(true);
-    Alert.alert('Code SMS envoyé', 'Code de vérification simulé : 1234');
-    setOtpCode('1234');
-  };
-
-  const handleVerifyOtp = async () => {
-    if (otpCode.length < 4) {
-      Alert.alert('Code incomplet', 'Entrez le code à 4 chiffres.');
-      return;
-    }
-    const success = await loginWithPhone(phoneNumber, otpCode);
-    if (success) {
-      Alert.alert('Bienvenue !', 'Compte vérifié avec succès (+500 jetons offerts !)');
-      if (onClose) onClose();
-    }
-  };
-
-  const handleEmailSubmit = async () => {
-    if (!email.includes('@') || password.length < 4) {
-      Alert.alert('Erreur', 'Vérifiez votre adresse email et mot de passe.');
-      return;
-    }
-    await loginWithEmail(email, password);
-    if (onClose) onClose();
+  const handleTestLogin = async () => {
+    await loginAsTestUser();
+    onClose?.();
   };
 
   return (
@@ -153,10 +120,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({ visible, onClose }) => {
           <View style={styles.cardContainer}>
             {activeTab === 'guest' && (
               <View style={styles.formSection}>
-                <Text style={styles.formTitle}>Créer un profil rapide</Text>
-                <Text style={styles.formDesc}>
-                  Commencez à jouer immédiatement avec 1 000 jetons offerts.
-                </Text>
+                <Text style={styles.formTitle}>Bienvenue à la table</Text>
+                <Text style={styles.formDesc}>Accès de démonstration, sans compte réel ni mot de passe.</Text>
+                <TouchableOpacity onPress={handleTestLogin} style={styles.primaryBtn}>
+                  <Text style={styles.primaryBtnText}>🎮 Entrer avec le compte de test</Text>
+                </TouchableOpacity>
+                <Text style={styles.formDesc}>Test Player · sauvegarde locale sur cet appareil</Text>
 
                 {/* Avatar Preview */}
                 <View style={styles.avatarPreviewCenter}>
@@ -222,53 +191,13 @@ export const LoginModal: React.FC<LoginModalProps> = ({ visible, onClose }) => {
               <View style={styles.formSection}>
                 <Text style={styles.formTitle}>Connexion par Téléphone</Text>
                 <Text style={styles.formDesc}>
-                  Entrez votre numéro tunisien pour sécuriser votre compte et obtenir +500 jetons bonus.
+                  La connexion par SMS n’est pas disponible : aucun fournisseur d’authentification n’est configuré.
                 </Text>
 
-                <Text style={styles.inputLabel}>Numéro de téléphone :</Text>
-                <View style={styles.phoneInputRow}>
-                  <View style={styles.prefixBox}>
-                    <Text style={styles.flagEmoji}>🇹🇳</Text>
-                    <Text style={styles.prefixText}>+216</Text>
-                  </View>
-                  <View style={[styles.inputBox, { flex: 1 }]}>
-                    <TextInput
-                      style={styles.textInput}
-                      placeholder="98 123 456"
-                      placeholderTextColor="#688773"
-                      keyboardType="phone-pad"
-                      value={phoneNumber}
-                      onChangeText={setPhoneNumber}
-                      maxLength={12}
-                    />
-                  </View>
-                </View>
-
-                {!otpSent ? (
-                  <TouchableOpacity onPress={handleSendOtp} style={styles.primaryBtn}>
-                    <Text style={styles.primaryBtnText}>📩 Envoyer le code SMS</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <>
-                    <Text style={[styles.inputLabel, { marginTop: 12 }]}>Code reçu (SMS) :</Text>
-                    <View style={styles.inputBox}>
-                      <Feather name="key" size={16} color="#D4AF37" />
-                      <TextInput
-                        style={styles.textInput}
-                        placeholder="Code à 4 chiffres (ex: 1234)"
-                        placeholderTextColor="#688773"
-                        keyboardType="number-pad"
-                        value={otpCode}
-                        onChangeText={setOtpCode}
-                        maxLength={6}
-                      />
-                    </View>
-
-                    <TouchableOpacity onPress={handleVerifyOtp} style={styles.primaryBtn}>
-                      <Text style={styles.primaryBtnText}>✓ Vérifier et se connecter</Text>
-                    </TouchableOpacity>
-                  </>
-                )}
+                <Text style={styles.formDesc}>Utilisez le compte de test local ou le mode invité ci-dessus.</Text>
+                <TouchableOpacity onPress={handleTestLogin} style={styles.primaryBtn}>
+                  <Text style={styles.primaryBtnText}>Utiliser le compte de test</Text>
+                </TouchableOpacity>
               </View>
             )}
 
@@ -276,38 +205,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({ visible, onClose }) => {
               <View style={styles.formSection}>
                 <Text style={styles.formTitle}>Connexion par Email</Text>
                 <Text style={styles.formDesc}>
-                  Connectez-vous avec votre adresse email habituelle.
+                  La connexion par email n’est pas disponible : aucun serveur de comptes n’est configuré.
                 </Text>
 
-                <Text style={styles.inputLabel}>Adresse Email :</Text>
-                <View style={styles.inputBox}>
-                  <Feather name="mail" size={16} color="#D4AF37" />
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="joueur@domaine.com"
-                    placeholderTextColor="#688773"
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    value={email}
-                    onChangeText={setEmail}
-                  />
-                </View>
-
-                <Text style={styles.inputLabel}>Mot de passe :</Text>
-                <View style={styles.inputBox}>
-                  <Feather name="lock" size={16} color="#D4AF37" />
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="••••••••"
-                    placeholderTextColor="#688773"
-                    secureTextEntry
-                    value={password}
-                    onChangeText={setPassword}
-                  />
-                </View>
-
-                <TouchableOpacity onPress={handleEmailSubmit} style={styles.primaryBtn}>
-                  <Text style={styles.primaryBtnText}>Se Connecter</Text>
+                <Text style={styles.formDesc}>Utilisez le compte de test local ou le mode invité ci-dessus.</Text>
+                <TouchableOpacity onPress={handleTestLogin} style={styles.primaryBtn}>
+                  <Text style={styles.primaryBtnText}>Utiliser le compte de test</Text>
                 </TouchableOpacity>
               </View>
             )}
