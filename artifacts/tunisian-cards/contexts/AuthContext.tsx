@@ -8,6 +8,11 @@ export interface UserProfile {
   xp: number;
   xpTarget: number;
   coins: number;
+  dailyRewardClaimDate?: string;
+  ownedCardBacks?: Array<'red' | 'green'>;
+  equippedCardBack?: 'red' | 'green';
+  ownedTableThemes?: Array<'burgundy' | 'emerald'>;
+  equippedTableTheme?: 'burgundy' | 'emerald';
   avatarColor: string;
   avatarEmoji: string;
   isGuest: boolean;
@@ -30,12 +35,19 @@ interface AuthContextType {
   loginAsTestUser: () => Promise<void>;
   loginWithPhone: (phone: string, otp: string) => Promise<boolean>;
   loginWithEmail: (email: string, pass: string) => Promise<boolean>;
+  loginWithUsername: (username: string, password: string) => Promise<boolean>;
+  registerWithUsername: (username: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   updateCoins: (amount: number) => Promise<void>;
+  spendCoins: (amount: number) => Promise<boolean>;
+  claimDailyReward: () => Promise<boolean>;
+  purchaseCosmetic: (kind: 'cardBack' | 'tableTheme', item: 'red' | 'green' | 'burgundy' | 'emerald', price: number) => Promise<boolean>;
+  equipCosmetic: (kind: 'cardBack' | 'tableTheme', item: 'red' | 'green' | 'burgundy' | 'emerald') => Promise<boolean>;
   addGameResult: (won: boolean, pointsScored: number, sweeps: number, capturedSbaa: boolean) => Promise<void>;
 }
 
 const STORAGE_KEY = '@tunisian_cards_user_session';
+const ACCOUNTS_KEY = '@tunisian_cards_local_accounts';
 
 const testUser: UserProfile = {
   id: 'test-player',
@@ -43,7 +55,7 @@ const testUser: UserProfile = {
   level: 1,
   xp: 350,
   xpTarget: 2000,
-  coins: 1000,
+  coins: 1500,
   avatarColor: '#163E27',
   avatarEmoji: '👑',
   isGuest: true,
@@ -64,8 +76,14 @@ const AuthContext = createContext<AuthContextType>({
   loginAsTestUser: async () => {},
   loginWithPhone: async () => false,
   loginWithEmail: async () => false,
+  loginWithUsername: async () => false,
+  registerWithUsername: async () => false,
   logout: async () => {},
   updateCoins: async () => {},
+  spendCoins: async () => false,
+  claimDailyReward: async () => false,
+  purchaseCosmetic: async () => false,
+  equipCosmetic: async () => false,
   addGameResult: async () => {},
 });
 
@@ -81,7 +99,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const data = await AsyncStorage.getItem(STORAGE_KEY);
       if (data) {
-        setUser(JSON.parse(data));
+        const storedUser = JSON.parse(data) as UserProfile;
+        if (storedUser && typeof storedUser.username === 'string' && typeof storedUser.coins === 'number') {
+          setUser(storedUser);
+        } else {
+          await AsyncStorage.removeItem(STORAGE_KEY);
+          setUser(null);
+        }
       } else {
         setUser(null);
       }
@@ -112,7 +136,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       level: 1,
       xp: 0,
       xpTarget: 2000,
-      coins: 1000,
+      coins: 1500,
       avatarColor,
       avatarEmoji,
       isGuest: true,
@@ -133,9 +157,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return false;
   };
 
-  const loginWithEmail = async (_email: string, _pass: string): Promise<boolean> => {
-    // No authentication backend is configured, so do not create a fake authenticated account.
-    return false;
+  const loginWithUsername = async (username: string, password: string): Promise<boolean> => {
+    const normalizedUsername = username.trim().toLowerCase();
+    if (!normalizedUsername || !password) return false;
+    try {
+      const accounts = JSON.parse((await AsyncStorage.getItem(ACCOUNTS_KEY)) ?? '{}') as Record<string, { password: string; user: UserProfile }>;
+      const account = accounts[normalizedUsername];
+      if (!account || account.password !== password) return false;
+      await saveUser(account.user);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const registerWithUsername = async (username: string, password: string): Promise<boolean> => {
+    const cleanUsername = username.trim();
+    const normalizedUsername = cleanUsername.toLowerCase();
+    if (cleanUsername.length < 3 || password.length < 6) return false;
+    try {
+      const accounts = JSON.parse((await AsyncStorage.getItem(ACCOUNTS_KEY)) ?? '{}') as Record<string, { password: string; user: UserProfile }>;
+      if (accounts[normalizedUsername]) return false;
+      const newUser: UserProfile = {
+        id: `user-${Date.now()}`, username: cleanUsername, level: 1, xp: 0, xpTarget: 2000,
+        coins: 1500, avatarColor: '#163E27', avatarEmoji: '👑', isGuest: false,
+        stats: { gamesPlayed: 0, gamesWon: 0, chkobbaSweeps: 0, sbaaElHayaCaptures: 0, totalPoints: 0 },
+      };
+      accounts[normalizedUsername] = { password, user: newUser };
+      await AsyncStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+      await saveUser(newUser);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const loginWithEmail = async (username: string, pass: string): Promise<boolean> => {
+    return loginWithUsername(username, pass);
   };
 
   const loginAsTestUser = async () => {
@@ -158,6 +216,81 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       coins: Math.max(0, user.coins + amount),
     };
     await saveUser(updated);
+  };
+
+  const spendCoins = async (amount: number): Promise<boolean> => {
+    if (!Number.isSafeInteger(amount) || amount < 0 || !user || user.coins < amount) return false;
+    const updated = { ...user, coins: user.coins - amount };
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      setUser(updated);
+      return true;
+    } catch (e) {
+      console.error('Failed to save coin spend:', e);
+      return false;
+    }
+  };
+
+  const claimDailyReward = async (): Promise<boolean> => {
+    if (!user) return false;
+    const today = new Date().toISOString().slice(0, 10);
+    if (user.dailyRewardClaimDate === today) return false;
+    const updated = { ...user, dailyRewardClaimDate: today, coins: user.coins + 500 };
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      setUser(updated);
+      return true;
+    } catch (e) {
+      console.error('Failed to save daily reward:', e);
+      return false;
+    }
+  };
+
+  const purchaseCosmetic = async (
+    kind: 'cardBack' | 'tableTheme',
+    item: 'red' | 'green' | 'burgundy' | 'emerald',
+    price: number,
+  ): Promise<boolean> => {
+    if (!Number.isSafeInteger(price) || price < 0 || !user || user.coins < price) return false;
+    if (kind === 'cardBack' && item !== 'red' && item !== 'green') return false;
+    if (kind === 'tableTheme' && item !== 'burgundy' && item !== 'emerald') return false;
+    const ownedCardBacks = user.ownedCardBacks ?? ['red'];
+    const ownedTableThemes = user.ownedTableThemes ?? ['burgundy'];
+    if (kind === 'cardBack' && ownedCardBacks.includes(item as 'red' | 'green')) return true;
+    if (kind === 'tableTheme' && ownedTableThemes.includes(item as 'burgundy' | 'emerald')) return true;
+    const updated = kind === 'cardBack'
+      ? { ...user, coins: user.coins - price, ownedCardBacks: [...ownedCardBacks, item as 'red' | 'green'] }
+      : { ...user, coins: user.coins - price, ownedTableThemes: [...ownedTableThemes, item as 'burgundy' | 'emerald'] };
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      setUser(updated);
+      return true;
+    } catch (e) {
+      console.error('Failed to save cosmetic purchase:', e);
+      return false;
+    }
+  };
+
+  const equipCosmetic = async (
+    kind: 'cardBack' | 'tableTheme',
+    item: 'red' | 'green' | 'burgundy' | 'emerald',
+  ): Promise<boolean> => {
+    if (!user) return false;
+    const valid = kind === 'cardBack' ? item === 'red' || item === 'green' : item === 'burgundy' || item === 'emerald';
+    if (!valid) return false;
+    const owns = kind === 'cardBack'
+      ? (user.ownedCardBacks ?? ['red']).includes(item as 'red' | 'green')
+      : (user.ownedTableThemes ?? ['burgundy']).includes(item as 'burgundy' | 'emerald');
+    if (!owns) return false;
+    const updated = kind === 'cardBack' ? { ...user, equippedCardBack: item as 'red' | 'green' } : { ...user, equippedTableTheme: item as 'burgundy' | 'emerald' };
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      setUser(updated);
+      return true;
+    } catch (e) {
+      console.error('Failed to equip cosmetic:', e);
+      return false;
+    }
   };
 
   const addGameResult = async (
@@ -207,8 +340,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loginAsTestUser,
         loginWithPhone,
         loginWithEmail,
+        loginWithUsername,
+        registerWithUsername,
         logout,
         updateCoins,
+        spendCoins,
+        claimDailyReward,
+        purchaseCosmetic,
+        equipCosmetic,
         addGameResult,
       }}
     >

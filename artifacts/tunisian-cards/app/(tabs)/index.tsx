@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   SafeAreaView,
   StatusBar,
+  Platform,
   Modal,
   Alert,
 } from 'react-native';
@@ -16,19 +17,28 @@ import { RewardedAdModal } from '@/components/ads/RewardedAdModal';
 import { LoginModal } from '@/components/auth/LoginModal';
 import { useAuth } from '@/contexts/AuthContext';
 import colors from '@/constants/colors';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 
 export default function HomeScreen() {
-  const { user, updateCoins } = useAuth();
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { user, claimDailyReward, updateCoins } = useAuth();
   const [activeGame, setActiveGame] = useState<'chkobba' | 'rami' | null>(null);
   const [dailyClaimed, setDailyClaimed] = useState(false);
   const [showAdModal, setShowAdModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [adsWatched, setAdsWatched] = useState(0);
+  const [claimingDaily, setClaimingDaily] = useState(false);
 
-  const coins = user?.coins ?? 1000;
-  const username = user?.username ?? 'monitoralk';
+  useEffect(() => {
+    setDailyClaimed(user?.dailyRewardClaimDate === new Date().toISOString().slice(0, 10));
+  }, [user?.dailyRewardClaimDate]);
+
+  const coins = user?.coins ?? 1500;
+  const username = user?.username ?? 'Joueur';
   const level = user?.level ?? 1;
-  const xp = user?.xp ?? 350;
+  const xp = user?.xp ?? 0;
   const xpTarget = user?.xpTarget ?? 2000;
   const avatarColor = user?.avatarColor ?? '#163E27';
   const avatarEmoji = user?.avatarEmoji ?? '👑';
@@ -44,16 +54,25 @@ export default function HomeScreen() {
   }
 
   const handleClaimDaily = async () => {
-    if (!dailyClaimed) {
-      setDailyClaimed(true);
-      await updateCoins(500);
+    if (dailyClaimed || claimingDaily || !user) {
+      if (!user) Alert.alert('Connexion requise', 'Connectez-vous pour enregistrer votre récompense quotidienne.');
+      return;
+    }
+    setClaimingDaily(true);
+    try {
+      const claimed = await claimDailyReward();
+      setDailyClaimed(claimed || user.dailyRewardClaimDate === new Date().toISOString().slice(0, 10));
+      if (claimed) Alert.alert('Récompense reçue !', '500 pièces ont été ajoutées à votre solde.');
+      else Alert.alert('Déjà réclamée', 'Revenez demain pour votre prochaine récompense.');
+    } finally {
+      setClaimingDaily(false);
     }
   };
 
-  const xpPercent = Math.min(100, Math.round((xp / xpTarget) * 100));
+  const xpPercent = Math.min(100, Math.round((xp / Math.max(1, xpTarget)) * 100));
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { paddingTop: Math.max(insets.top, Platform.OS === 'android' ? StatusBar.currentHeight ?? 0 : 0) }]}>
       <StatusBar barStyle="light-content" backgroundColor="#0B2014" />
       <ScrollView
         style={styles.container}
@@ -147,10 +166,10 @@ export default function HomeScreen() {
 
           <TouchableOpacity
             onPress={handleClaimDaily}
-            disabled={dailyClaimed}
+            disabled={dailyClaimed || claimingDaily || !user}
             style={[
               styles.claimButton,
-              dailyClaimed && styles.claimButtonDisabled,
+              (dailyClaimed || claimingDaily || !user) && styles.claimButtonDisabled,
             ]}
           >
             <Text style={styles.claimButtonText}>
@@ -253,7 +272,7 @@ export default function HomeScreen() {
 
             {/* Main Action: Quick Play */}
             <TouchableOpacity
-              onPress={() => setActiveGame('chkobba')}
+              onPress={() => router.push('/(tabs)/games?game=chkobba&action=quick' as never)}
               style={styles.quickPlayBtn}
             >
               <Text style={styles.quickPlayText}>⚡ Partie rapide</Text>
@@ -262,14 +281,14 @@ export default function HomeScreen() {
             {/* Secondary Buttons Row */}
             <View style={styles.secondaryBtnRow}>
               <TouchableOpacity
-                onPress={() => setActiveGame('chkobba')}
+                onPress={() => router.push('/(tabs)/games?action=create&game=chkobba' as never)}
                 style={styles.subActionBtn}
               >
                 <Feather name="plus-circle" size={14} color="#FDE68A" />
                 <Text style={styles.subActionText}>Créer</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={() => setActiveGame('chkobba')}
+                onPress={() => router.push('/(tabs)/games?action=join' as never)}
                 style={styles.subActionBtn}
               >
                 <Feather name="log-in" size={14} color="#FDE68A" />
@@ -304,23 +323,23 @@ export default function HomeScreen() {
             </Text>
 
             <TouchableOpacity
-              onPress={() => Alert.alert('Rami indisponible', 'Le mode Rami et ses règles ne sont pas encore implémentés. Jouez à Chkobba pour le moment.')}
-              style={[styles.quickPlayBtn, { opacity: 0.65 }]}
+              onPress={() => router.push('/(tabs)/games?game=rami&action=quick' as never)}
+              style={styles.quickPlayBtn}
             >
               <Text style={styles.quickPlayText}>⚡ Partie rapide</Text>
             </TouchableOpacity>
 
             <View style={styles.secondaryBtnRow}>
               <TouchableOpacity
-              onPress={() => Alert.alert('Rami indisponible', 'Le mode Rami et ses règles ne sont pas encore implémentés.')}
-                style={[styles.subActionBtn, { opacity: 0.65 }]}
+              onPress={() => router.push('/(tabs)/games?action=create&game=rami' as never)}
+                style={styles.subActionBtn}
               >
                 <Feather name="plus-circle" size={14} color="#FDE68A" />
                 <Text style={styles.subActionText}>Créer</Text>
               </TouchableOpacity>
               <TouchableOpacity
-              onPress={() => Alert.alert('Rami indisponible', 'Le mode Rami et ses règles ne sont pas encore implémentés.')}
-                style={[styles.subActionBtn, { opacity: 0.65 }]}
+              onPress={() => router.push('/(tabs)/games?action=join' as never)}
+                style={styles.subActionBtn}
               >
                 <Feather name="log-in" size={14} color="#FDE68A" />
                 <Text style={styles.subActionText}>Rejoindre</Text>
@@ -337,6 +356,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#081B12',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight ?? 0 : 0,
   },
   container: {
     flex: 1,

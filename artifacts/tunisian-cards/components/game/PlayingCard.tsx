@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   StyleSheet,
   View,
   Text,
   TouchableOpacity,
   Image,
+  Animated,
 } from 'react-native';
 import {
   RenderSuitIcon,
@@ -37,6 +38,16 @@ export const PlayingCard: React.FC<PlayingCardProps> = ({
   height = 98,
   disabled = false,
 }) => {
+  const selectionProgress = useRef(new Animated.Value(isSelected ? 1 : 0)).current;
+  useEffect(() => {
+    Animated.spring(selectionProgress, {
+      toValue: isSelected ? 1 : 0,
+      speed: 24,
+      bounciness: 7,
+      useNativeDriver: true,
+    }).start();
+  }, [isSelected, selectionProgress]);
+  const selectionTransform = [{ translateY: selectionProgress.interpolate({ inputRange: [0, 1], outputRange: [0, -12] }) }, { scale: selectionProgress.interpolate({ inputRange: [0, 1], outputRange: [1, 1.035] }) }];
   // Display string for the rank
   const getRankDisplay = (val: number): string => {
     switch (val) {
@@ -102,7 +113,7 @@ export const PlayingCard: React.FC<PlayingCardProps> = ({
               ? '#D4AF37'
               : '#D6CDB8',
             borderWidth: isSelected ? 2.5 : 1.2,
-            transform: [{ translateY: isSelected ? -16 : 0 }],
+            transform: [{ translateY: isSelected ? -12 : 0 }],
             shadowOpacity: isSelected ? 0.45 : 0.2,
             shadowRadius: isSelected ? 10 : 4,
             elevation: isSelected ? 12 : 3,
@@ -140,7 +151,7 @@ export const PlayingCard: React.FC<PlayingCardProps> = ({
 
   // Vector render for other cards in the classic French café style
   const cardContent = (
-    <View
+    <Animated.View
       style={[
         styles.cardBase,
         styles.cardFace,
@@ -153,7 +164,7 @@ export const PlayingCard: React.FC<PlayingCardProps> = ({
             ? '#D4AF37'
             : '#D6CDB8',
           borderWidth: isSelected ? 2.5 : 1.2,
-          transform: [{ translateY: isSelected ? -16 : 0 }],
+          transform: selectionTransform,
           shadowOpacity: isSelected ? 0.45 : 0.2,
           shadowRadius: isSelected ? 10 : 4,
           elevation: isSelected ? 12 : 3,
@@ -215,7 +226,7 @@ export const PlayingCard: React.FC<PlayingCardProps> = ({
           {getRankDisplay(rank)}
         </Text>
       </View>
-    </View>
+    </Animated.View>
   );
 
   if (onPress && !disabled) {
@@ -238,13 +249,12 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   cardBase: {
-    borderRadius: 10,
+    borderRadius: 8,
     overflow: 'hidden',
     position: 'relative',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.24,
-    shadowRadius: 5,
     elevation: 4,
   },
   cardFace: {

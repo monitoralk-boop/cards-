@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -9,9 +10,14 @@ import {
   TextInput,
   Modal,
   Alert,
+  Platform,
+  StatusBar,
 } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { GameArena } from '@/components/game/GameArena';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '@/contexts/AuthContext';
+import { useLocalSearchParams } from 'expo-router';
 
 interface Room {
   id: string;
@@ -23,16 +29,41 @@ interface Room {
   entryFee: number;
   targetScore: number;
   hostName: string;
+  teamMode: '1v1' | '2v2';
 }
 
 export default function GamesScreen() {
+  const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ game?: string; action?: string }>();
+  const { user, spendCoins } = useAuth();
   const [filter, setFilter] = useState<'all' | 'chkobba' | 'rami'>('all');
   const [joinCode, setJoinCode] = useState('');
-  const [activeGameMode, setActiveGameMode] = useState<'chkobba' | 'rami' | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newRoomTitle, setNewRoomTitle] = useState('');
   const [newRoomType, setNewRoomType] = useState<'chkobba' | 'rami'>('chkobba');
-  const [newRoomMaxPlayers, setNewRoomMaxPlayers] = useState<2 | 3 | 4>(2);
+  const [newRoomMaxPlayers, setNewRoomMaxPlayers] = useState<2 | 4>(2);
+  const [newRoomTarget, setNewRoomTarget] = useState<11 | 21 | 51 | 101>(21);
+  const [newRoomTeamMode, setNewRoomTeamMode] = useState<'1v1' | '2v2'>('1v1');
+  const [newRoomEntryFee, setNewRoomEntryFee] = useState<100 | 250 | 500>(100);
+  const [isJoining, setIsJoining] = useState(false);
+  const [activeGameOptions, setActiveGameOptions] = useState<{ mode: 'chkobba' | 'rami'; targetScore: number; teamMode: '1v1' | '2v2' } | null>(null);
+
+  useEffect(() => {
+    if (params.action === 'create') {
+      if (params.game === 'rami' || params.game === 'chkobba') setGameType(params.game);
+      setShowCreateModal(true);
+    }
+    if (params.action === 'join') setTimeout(() => joinInputRef.current?.focus(), 250);
+    if (params.action === 'quick') handleQuickPlay(params.game === 'rami' ? 'rami' : params.game === 'chkobba' ? 'chkobba' : undefined);
+  }, [params.action, params.game]);
+
+  const joinInputRef = React.useRef<TextInput>(null);
+
+  const setGameType = (type: 'chkobba' | 'rami') => {
+    setNewRoomType(type);
+    setNewRoomTarget(type === 'chkobba' ? 21 : 51);
+    setNewRoomMaxPlayers(newRoomTeamMode === '2v2' ? 4 : 2);
+  };
 
   const [rooms, setRooms] = useState<Room[]>([
     {
@@ -45,6 +76,7 @@ export default function GamesScreen() {
       entryFee: 100,
       targetScore: 21,
       hostName: 'CH AMINE',
+      teamMode: '2v2',
     },
     {
       id: 'r-2',
@@ -56,6 +88,7 @@ export default function GamesScreen() {
       entryFee: 250,
       targetScore: 21,
       hostName: 'ANIS',
+      teamMode: '1v1',
     },
     {
       id: 'r-3',
@@ -67,6 +100,7 @@ export default function GamesScreen() {
       entryFee: 500,
       targetScore: 51,
       hostName: 'MAHDI V.',
+      teamMode: '2v2',
     },
     {
       id: 'r-4',
@@ -78,40 +112,82 @@ export default function GamesScreen() {
       entryFee: 100,
       targetScore: 11,
       hostName: 'Sami_Sousse',
+      teamMode: '1v1',
     },
   ]);
 
-  if (activeGameMode) {
+  if (activeGameOptions) {
     return (
       <GameArena
-        gameMode={activeGameMode}
-        onBackToLobby={() => setActiveGameMode(null)}
+        gameMode={activeGameOptions.mode}
+        targetScore={activeGameOptions.targetScore}
+        teamMode={activeGameOptions.teamMode}
+        onBackToLobby={() => setActiveGameOptions(null)}
       />
     );
   }
+
+  const joinRoom = async (room: Room) => {
+    if (isJoining) return;
+    if (room.playerCount >= room.maxPlayers) {
+      Alert.alert('Table complète', 'Cette table ne dispose plus de places libres.');
+      return;
+    }
+    if ((user?.coins ?? 0) < room.entryFee) {
+      Alert.alert('Solde insuffisant', `Cette table demande ${room.entryFee} jetons. Votre solde est de ${user?.coins ?? 0}.`);
+      return;
+    }
+    setIsJoining(true);
+    try {
+      const paid = await spendCoins(room.entryFee);
+      if (!paid) {
+        Alert.alert('Impossible de rejoindre', 'Le solde est insuffisant ou le paiement n’a pas pu être enregistré.');
+        return;
+      }
+      setRooms((current) => current.map((candidate) => candidate.id === room.id
+        ? { ...candidate, playerCount: candidate.playerCount + 1 }
+        : candidate));
+      setActiveGameOptions({ mode: room.gameType, targetScore: room.targetScore, teamMode: room.teamMode });
+    } finally {
+      setIsJoining(false);
+    }
+  };
 
   const filteredRooms = rooms.filter((r) => {
     if (filter === 'all') return true;
     return r.gameType === filter;
   });
 
+  const handleQuickPlay = (gameType?: 'chkobba' | 'rami') => {
+    const room = rooms.find((candidate) => candidate.playerCount < candidate.maxPlayers && (!gameType || candidate.gameType === gameType));
+    if (room) void joinRoom(room);
+    else {
+      if (gameType) setGameType(gameType);
+      setShowCreateModal(true);
+    }
+  };
+
   const handleJoinByCode = () => {
     if (!joinCode.trim()) return;
     const found = rooms.find((r) => r.code.toUpperCase() === joinCode.trim().toUpperCase());
     if (found) {
-      if (found.gameType === 'rami') {
-        Alert.alert('Rami indisponible', 'Les règles Rami ne sont pas encore implémentées. Cette table ne peut pas être lancée.');
-        return;
-      }
-      setActiveGameMode(found.gameType);
+      void joinRoom(found);
     } else {
       Alert.alert('Table introuvable', 'Vérifiez le code de la table.');
     }
   };
 
-  const handleCreateRoom = () => {
-    if (newRoomType === 'rami') {
-      Alert.alert('Rami indisponible', 'La création de tables Rami est désactivée jusqu’à l’implémentation complète du jeu.');
+  const handleCreateRoom = async () => {
+    if (isJoining) return;
+    if ((user?.coins ?? 0) < newRoomEntryFee) {
+      Alert.alert('Solde insuffisant', `Il vous faut ${newRoomEntryFee} jetons pour ouvrir cette table.`);
+      return;
+    }
+    setIsJoining(true);
+    const paid = await spendCoins(newRoomEntryFee);
+    if (!paid) {
+      setIsJoining(false);
+      Alert.alert('Impossible de créer la table', 'Le solde est insuffisant ou le paiement n’a pas pu être enregistré.');
       return;
     }
     const code = Math.random().toString(36).substring(2, 7).toUpperCase();
@@ -122,18 +198,21 @@ export default function GamesScreen() {
       gameType: newRoomType,
       playerCount: 1,
       maxPlayers: newRoomMaxPlayers,
-      entryFee: 100,
-      targetScore: newRoomType === 'chkobba' ? 21 : 51,
-      hostName: 'monitoralk',
+      entryFee: newRoomEntryFee,
+      targetScore: newRoomTarget,
+      hostName: user?.username ?? 'Joueur',
+      teamMode: newRoomTeamMode,
     };
 
-    setRooms([newRoom, ...rooms]);
+    setRooms((current) => [newRoom, ...current]);
     setShowCreateModal(false);
-    setActiveGameMode(newRoomType);
+    setNewRoomTitle('');
+    setActiveGameOptions({ mode: newRoom.gameType, targetScore: newRoom.targetScore, teamMode: newRoom.teamMode });
+    setIsJoining(false);
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { paddingTop: Math.max(insets.top, Platform.OS === 'android' ? StatusBar.currentHeight ?? 0 : 0) }]}>
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
@@ -155,6 +234,7 @@ export default function GamesScreen() {
         <View style={styles.joinCodeBox}>
           <Feather name="hash" size={16} color="#D4AF37" />
           <TextInput
+            ref={joinInputRef}
             style={styles.joinInput}
             placeholder="Code de table privé (ex: TUN21)..."
             placeholderTextColor="#688773"
@@ -224,6 +304,9 @@ export default function GamesScreen() {
             </Text>
           </TouchableOpacity>
         </View>
+        <TouchableOpacity style={styles.quickPlayLobbyBtn} onPress={() => handleQuickPlay(params.game === 'rami' ? 'rami' : params.game === 'chkobba' ? 'chkobba' : undefined)}>
+          <Text style={styles.quickPlayLobbyText}>⚡ Partie rapide</Text>
+        </TouchableOpacity>
 
         {/* Rooms List */}
         <ScrollView
@@ -261,9 +344,8 @@ export default function GamesScreen() {
                 </View>
 
                 <TouchableOpacity
-                  onPress={() => room.gameType === 'rami'
-                    ? Alert.alert('Rami indisponible', 'Les règles Rami ne sont pas encore implémentées.')
-                    : setActiveGameMode(room.gameType)}
+                  disabled={isJoining || room.playerCount >= room.maxPlayers}
+                  onPress={() => void joinRoom(room)}
                   style={styles.enterTableBtn}
                 >
                   <Text style={styles.enterTableBtnText}>Prendre place</Text>
@@ -281,7 +363,7 @@ export default function GamesScreen() {
           onRequestClose={() => setShowCreateModal(false)}
         >
           <View style={styles.modalOverlay}>
-            <View style={styles.modalBox}>
+            <ScrollView style={styles.modalBox} contentContainerStyle={styles.modalContent} keyboardShouldPersistTaps="handled">
               <Text style={styles.modalTitle}>Créer une nouvelle table</Text>
 
               {/* Game Type Selection */}
@@ -289,19 +371,19 @@ export default function GamesScreen() {
                 <Text style={styles.modalLabel}>Jeu :</Text>
                 <View style={styles.typeToggle}>
                   <TouchableOpacity
-                    onPress={() => setNewRoomType('chkobba')}
+                    onPress={() => setGameType('chkobba')}
                     style={[
                       styles.toggleOption,
                       newRoomType === 'chkobba' && styles.toggleOptionActive,
                     ]}
                   >
-                    <Text style={styles.toggleText}>Chkobba</Text>
+                    <Text style={styles.toggleText}>Chkobba · 40c</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    onPress={() => Alert.alert('Rami indisponible', 'Les règles Rami ne sont pas encore implémentées. Seules les tables Chkobba peuvent être créées.')}
-                    style={[styles.toggleOption, { opacity: 0.5 }]}
+                    onPress={() => setGameType('rami')}
+                    style={[styles.toggleOption, newRoomType === 'rami' && styles.toggleOptionActive]}
                   >
-                    <Text style={styles.toggleText}>Rami · bientôt</Text>
+                    <Text style={styles.toggleText}>Rami · 108c</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -310,16 +392,41 @@ export default function GamesScreen() {
               <View style={styles.modalRow}>
                 <Text style={styles.modalLabel}>Joueurs :</Text>
                 <View style={styles.playerCountRow}>
-                  {[2, 3, 4].map((count) => (
+                  {[2, 4].map((count) => (
                     <TouchableOpacity
                       key={count}
-                      onPress={() => setNewRoomMaxPlayers(count as 2 | 3 | 4)}
+                      onPress={() => {
+                        setNewRoomMaxPlayers(count as 2 | 4);
+                        setNewRoomTeamMode(count === 4 ? '2v2' : '1v1');
+                      }}
                       style={[
                         styles.countBtn,
                         newRoomMaxPlayers === count && styles.countBtnActive,
                       ]}
                     >
-                      <Text style={styles.countBtnText}>{count}j</Text>
+                      <Text style={styles.countBtnText}>{count === 2 ? '1v1' : '2v2'}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.modalRow}>
+                <Text style={styles.modalLabel}>Objectif :</Text>
+                <View style={styles.playerCountRow}>
+                  {(newRoomType === 'chkobba' ? [11, 21] : [51, 101]).map((target) => (
+                    <TouchableOpacity key={target} onPress={() => setNewRoomTarget(target as 11 | 21 | 51 | 101)} style={[styles.countBtn, newRoomTarget === target && styles.countBtnActive]}>
+                      <Text style={styles.countBtnText}>{target} pts</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.modalRow}>
+                <Text style={styles.modalLabel}>Mise :</Text>
+                <View style={styles.playerCountRow}>
+                  {([100, 250, 500] as const).map((fee) => (
+                    <TouchableOpacity key={fee} onPress={() => setNewRoomEntryFee(fee)} style={[styles.countBtn, newRoomEntryFee === fee && styles.countBtnActive]}>
+                      <Text style={styles.countBtnText}>{fee} 🪙</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -327,7 +434,7 @@ export default function GamesScreen() {
 
               <TextInput
                 style={styles.modalInput}
-                placeholder="Nom de la table (ex: قهوة الحومة)"
+                placeholder="Nom de la table (facultatif)"
                 placeholderTextColor="#688773"
                 value={newRoomTitle}
                 onChangeText={setNewRoomTitle}
@@ -342,13 +449,14 @@ export default function GamesScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  onPress={handleCreateRoom}
+                  onPress={() => void handleCreateRoom()}
+                  disabled={isJoining}
                   style={styles.modalConfirmBtn}
                 >
-                  <Text style={styles.modalConfirmText}>Ouvrir la table</Text>
+                  <Text style={styles.modalConfirmText}>{isJoining ? 'Patientez…' : 'Ouvrir la table'}</Text>
                 </TouchableOpacity>
               </View>
-            </View>
+            </ScrollView>
           </View>
         </Modal>
       </View>
@@ -360,6 +468,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#0A2114',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight ?? 0 : 0,
   },
   container: {
     flex: 1,
@@ -433,6 +542,8 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 14,
   },
+  quickPlayLobbyBtn: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#D4AF37', borderRadius: 10, paddingVertical: 11, marginBottom: 10 },
+  quickPlayLobbyText: { color: '#1A1405', fontSize: 14, fontWeight: '900' },
   filterPill: {
     backgroundColor: '#123321',
     borderColor: '#1D4A30',
@@ -562,7 +673,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 20,
     gap: 14,
+    maxHeight: '90%',
   },
+  modalContent: { gap: 14 },
   modalTitle: {
     color: '#FFF',
     fontSize: 16,

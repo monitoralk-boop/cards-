@@ -11,7 +11,6 @@ import {
   Alert,
 } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { PlayingCard } from './PlayingCard';
 import {
   ChkobbaCard,
@@ -22,6 +21,7 @@ import {
   calculateScores,
 } from './chkobbaLogic';
 import { useAuth } from '@/contexts/AuthContext';
+import { RamiGameScreen } from './RamiGameScreen';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -29,6 +29,7 @@ interface GameArenaProps {
   gameMode?: 'chkobba' | 'rami';
   opponentName?: string;
   targetScore?: number;
+  teamMode?: '1v1' | '2v2';
   onBackToLobby?: () => void;
 }
 
@@ -36,9 +37,14 @@ export const GameArena: React.FC<GameArenaProps> = ({
   gameMode = 'chkobba',
   opponentName = 'CH AMINE',
   targetScore = 21,
+  teamMode = '1v1',
   onBackToLobby,
 }) => {
   const { user, addGameResult } = useAuth();
+
+  if (gameMode === 'rami') {
+    return <RamiGameScreen opponentName={opponentName} onBackToLobby={onBackToLobby} />;
+  }
 
   // Match cumulative scores
   const [roundNumber, setRoundNumber] = useState(1);
@@ -61,11 +67,13 @@ export const GameArena: React.FC<GameArenaProps> = ({
   const [isPlayerTurn, setIsPlayerTurn] = useState(true);
   const [lastCapturer, setLastCapturer] = useState<'player' | 'opponent' | null>(null);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [selectedTableCardIds, setSelectedTableCardIds] = useState<string[]>([]);
   const [lastActionMessage, setLastActionMessage] = useState('دورك ، العب كارطة');
   const [isBotThinking, setIsBotThinking] = useState(false);
 
   // Celebrations & Modals
   const [chkobbaBanner, setChkobbaBanner] = useState<string | null>(null);
+  const [scorePopup, setScorePopup] = useState<string | null>(null);
   const [roundResult, setRoundResult] = useState<RoundResult | null>(null);
 
   // Rami specific state
@@ -83,6 +91,7 @@ export const GameArena: React.FC<GameArenaProps> = ({
     setIsPlayerTurn(true);
     setLastCapturer(null);
     setSelectedCardId(null);
+    setSelectedTableCardIds([]);
     setChkobbaBanner(null);
     setRoundResult(null);
     setLastActionMessage('جولة جديدة بدأت ، دورك للعب');
@@ -101,6 +110,12 @@ export const GameArena: React.FC<GameArenaProps> = ({
       return () => clearTimeout(timer);
     }
   }, [chkobbaBanner]);
+
+  useEffect(() => {
+    if (!scorePopup) return;
+    const timer = setTimeout(() => setScorePopup(null), 1600);
+    return () => clearTimeout(timer);
+  }, [scorePopup]);
 
   // 2. Auto-deal new hands or finalize round when both hands become empty
   useEffect(() => {
@@ -157,10 +172,11 @@ export const GameArena: React.FC<GameArenaProps> = ({
       const capturedIds = new Set(captured.map((c) => c.id));
       newTable = tableCards.filter((c) => !capturedIds.has(c.id));
       newOpponentCaptured = [...opponentCaptured, ...captured, cardPlayed];
+      setScorePopup(`+${captured.length + 1} كروت`);
       setLastCapturer('opponent');
 
       // Chkobba sweep?
-      if (newTable.length === 0 && !isLastCardOfRound) {
+        if (newTable.length === 0) {
         newOpponentChkobbas += 1;
         setOpponentChkobbas(newOpponentChkobbas);
         setChkobbaBanner(`🔥 ${opponentName} عمل شكبة! (+1)`);
@@ -195,34 +211,42 @@ export const GameArena: React.FC<GameArenaProps> = ({
     let newPlayerChkobbas = playerChkobbas;
 
     if (possibleCaptures.length > 0) {
-      // Player captures! Pick best or single capture
-      const captureToTake = possibleCaptures[0];
-      const captured = captureToTake.cards;
-      const capturedIds = new Set(captured.map((c) => c.id));
+      // Exact matches take priority; otherwise resolve a selected sum combination.
+      const captureToTake = selectedTableCardIds.length
+        ? possibleCaptures.find((capture) =>
+            capture.cards.length === selectedTableCardIds.length &&
+            capture.cards.every((card) => selectedTableCardIds.includes(card.id)),
+          )
+        : possibleCaptures.find((capture) => capture.kind === 'exact') ?? possibleCaptures[0];
+      if (!captureToTake && selectedTableCardIds.length > 0) return;
+      if (captureToTake) {
+        const captured = captureToTake.cards;
+        const capturedIds = new Set(captured.map((c) => c.id));
 
-      newTable = tableCards.filter((c) => !capturedIds.has(c.id));
-      newPlayerCaptured = [...playerCaptured, ...captured, playedCard];
-      setLastCapturer('player');
+        newTable = tableCards.filter((c) => !capturedIds.has(c.id));
+        newPlayerCaptured = [...playerCaptured, ...captured, playedCard];
+        setLastCapturer('player');
+        setScorePopup(`+${captured.length + 1} كروت`);
 
-      // Chkobba sweep?
-      if (newTable.length === 0 && !isLastCardOfRound) {
-        newPlayerChkobbas += 1;
-        setPlayerChkobbas(newPlayerChkobbas);
-        setChkobbaBanner('🔥 شـــــكـبـة ! (+1 نقطة) 🔥');
+        if (newTable.length === 0) {
+          newPlayerChkobbas += 1;
+          setPlayerChkobbas(newPlayerChkobbas);
+          setChkobbaBanner('🔥 شـــــكـبـة ! (+1 نقطة) 🔥');
+        }
+
+        const cardNames = captured.map((c) => `${c.rank}`).join(' + ');
+        setLastActionMessage(`أكلت الكارطة (${cardNames}) بنجاح`);
+      } else {
+        newTable = [...tableCards, playedCard];
+        setLastActionMessage(`رميت ${playedCard.rank} على الطاولة`);
       }
-
-      const cardNames = captured.map((c) => `${c.rank}`).join(' + ');
-      setLastActionMessage(`أكلت الكارطة (${cardNames}) بنجاح`);
-    } else {
-      // Discard on the table
-      newTable = [...tableCards, playedCard];
-      setLastActionMessage(`رميت ${playedCard.rank} على الطاولة`);
     }
 
     setTableCards(newTable);
     setPlayerCaptured(newPlayerCaptured);
     setPlayerHand((prev) => prev.filter((c) => c.id !== playedCard.id));
     setSelectedCardId(null);
+    setSelectedTableCardIds([]);
     setIsPlayerTurn(false);
   };
 
@@ -372,6 +396,18 @@ export const GameArena: React.FC<GameArenaProps> = ({
                 <Text style={styles.floatingChkobbaText}>{chkobbaBanner}</Text>
               </View>
             )}
+            {scorePopup && (
+              <View pointerEvents="none" style={styles.scorePopup}>
+                <Text style={styles.scorePopupText}>{scorePopup}</Text>
+              </View>
+            )}
+            {roundResult?.isGameOver && (
+              <View style={styles.roundWinnerBanner}>
+                <Text style={styles.roundWinnerText}>
+                  {roundResult.winner === 'player' ? '🏆 فزت بالمباراة!' : '🏆 الفائز: ' + opponentName}
+                </Text>
+              </View>
+            )}
 
             {/* TABLE CENTER: Deck Pile & Open Table Cards */}
             <View style={styles.tableCenter}>
@@ -402,11 +438,21 @@ export const GameArena: React.FC<GameArenaProps> = ({
                   tableCards.map((card) => {
                     const isCapturable = capturableCardIds.has(card.id);
                     return (
-                      <View
+                      <TouchableOpacity
                         key={card.id}
+                        activeOpacity={0.85}
+                        disabled={!isCapturable || !selectedCardId || !isPlayerTurn || isBotThinking}
+                        onPress={() => {
+                          if (!isCapturable || !selectedCardId || !isPlayerTurn || isBotThinking) return;
+                          const isSelected = selectedTableCardIds.includes(card.id);
+                          setSelectedTableCardIds((ids) =>
+                            isSelected ? ids.filter((id) => id !== card.id) : [...ids, card.id],
+                          );
+                        }}
                         style={[
                           styles.tableCardItem,
                           isCapturable && styles.capturableGlow,
+                          selectedTableCardIds.includes(card.id) && styles.selectedCaptureCard,
                         ]}
                       >
                         <PlayingCard
@@ -421,7 +467,7 @@ export const GameArena: React.FC<GameArenaProps> = ({
                             <Text style={styles.captureIndicatorText}>أكل ✓</Text>
                           </View>
                         )}
-                      </View>
+                      </TouchableOpacity>
                     );
                   })
                 )}
@@ -475,7 +521,9 @@ export const GameArena: React.FC<GameArenaProps> = ({
             <Text style={styles.primaryPlayButtonText}>
               {selectedCardId
                 ? currentCaptures.length > 0
-                  ? '⚡ أكل الكارطة'
+                  ? selectedTableCardIds.length > 0
+                    ? '⚡ أكل الكارطة المحددة'
+                    : '⚡ أكل أفضل تركيبة'
                   : 'ارمي على الطاولة'
                 : isPlayerTurn
                 ? 'اختر كارطة من يدك'
@@ -493,46 +541,30 @@ export const GameArena: React.FC<GameArenaProps> = ({
           >
             {playerHand.map((card, index) => {
               const isSelected = selectedCardId === card.id;
-              const cardGesture = Gesture.Pan()
-                .enabled(gameMode === 'chkobba')
-                .activeOffsetY(-12)
-                .failOffsetX([-24, 24])
-                .onEnd((event) => {
-                  if (
-                    event.translationY < -45 &&
-                    isPlayerTurn &&
-                    !isBotThinking
-                  ) {
-                    handlePlayerPlayCard(card.id);
-                  }
-                });
               return (
                 <View
                   key={card.id}
                   style={[
                     styles.cardSlot,
                     {
-                      marginLeft: index === 0 ? 10 : -14,
+                      marginLeft: index === 0 ? 0 : 4,
                       zIndex: isSelected ? 50 : index + 1,
                     },
                   ]}
                 >
-                  <GestureDetector gesture={cardGesture}>
-                    <View>
-                      <PlayingCard
+                  <PlayingCard
                         gameMode={gameMode}
                         suit={card.suit}
                         rank={card.rank}
                         isSelected={isSelected}
-                        width={64}
-                        height={92}
+                        width={68}
+                        height={98}
                         onPress={() => {
                           if (!isPlayerTurn || isBotThinking) return;
                           setSelectedCardId(isSelected ? null : card.id);
+                          setSelectedTableCardIds([]);
                         }}
                       />
-                    </View>
-                  </GestureDetector>
                 </View>
               );
             })}
@@ -552,7 +584,7 @@ export const GameArena: React.FC<GameArenaProps> = ({
                 {roundResult?.isGameOver
                   ? roundResult.winner === 'player'
                     ? '🎉 مبروك! فزت بالمباراة!'
-                    : '💔 خسرت المباراة!'
+                    : roundResult.winner === 'opponent' ? `🏆 الفائز: ${opponentName}` : '🤝 تعادل المباراة'
                   : `🏆 نتائج الجولة ${roundNumber}`}
               </Text>
               <Text style={styles.summarySubtitle}>
@@ -631,7 +663,7 @@ export const GameArena: React.FC<GameArenaProps> = ({
                     roundResult?.playerBreakdown.bermila.won && styles.winVal,
                   ]}
                 >
-                  {roundResult?.playerBreakdown.bermila.count} سبعات (+{roundResult?.playerBreakdown.bermila.points})
+                   {roundResult?.playerBreakdown.bermila.count} سبعات، {roundResult?.playerBreakdown.bermila.tieBreakCount} ستات (+{roundResult?.playerBreakdown.bermila.points})
                 </Text>
                 <Text
                   style={[
@@ -640,7 +672,7 @@ export const GameArena: React.FC<GameArenaProps> = ({
                     roundResult?.opponentBreakdown.bermila.won && styles.winVal,
                   ]}
                 >
-                  {roundResult?.opponentBreakdown.bermila.count} سبعات (+{roundResult?.opponentBreakdown.bermila.points})
+                   {roundResult?.opponentBreakdown.bermila.count} سبعات، {roundResult?.opponentBreakdown.bermila.tieBreakCount} ستات (+{roundResult?.opponentBreakdown.bermila.points})
                 </Text>
               </View>
 
@@ -703,7 +735,7 @@ export const GameArena: React.FC<GameArenaProps> = ({
                   💰 جائزة الفوز: +200 🪙 jetons & +150 XP !
                 </Text>
               </View>
-            )}
+                )}
 
             {/* Modal Actions */}
             <View style={styles.modalActionsRow}>
@@ -967,6 +999,41 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 12,
   },
+  roundWinnerBanner: {
+    position: 'absolute',
+    zIndex: 30,
+    top: '32%',
+    alignSelf: 'center',
+    backgroundColor: 'rgba(9, 30, 18, 0.96)',
+    borderColor: '#D4AF37',
+    borderWidth: 2,
+    borderRadius: 18,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    elevation: 14,
+  },
+  roundWinnerText: {
+    color: '#FDE68A',
+    fontSize: 20,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  scorePopup: {
+    position: 'absolute',
+    zIndex: 29,
+    top: '53%',
+    alignSelf: 'center',
+    backgroundColor: 'rgba(212, 175, 55, 0.94)',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    elevation: 8,
+  },
+  scorePopupText: {
+    color: '#1A1405',
+    fontSize: 17,
+    fontWeight: '900',
+  },
   floatingChkobbaText: {
     color: '#FFF',
     fontSize: 18,
@@ -1024,6 +1091,12 @@ const styles = StyleSheet.create({
   },
   capturableGlow: {
     transform: [{ scale: 1.05 }],
+  },
+  selectedCaptureCard: {
+    transform: [{ translateY: -8 }],
+    borderColor: '#FFD54F',
+    borderWidth: 2,
+    borderRadius: 8,
   },
   captureIndicatorPill: {
     position: 'absolute',
@@ -1109,13 +1182,16 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   handContainer: {
-    height: 105,
+    height: 116,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingTop: 12,
+    overflow: 'visible',
   },
   handScrollContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 12,
     alignItems: 'center',
+    paddingVertical: 12,
   },
   cardSlot: {
     // Overlap handled inline

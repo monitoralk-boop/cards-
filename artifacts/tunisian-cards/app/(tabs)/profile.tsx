@@ -9,12 +9,16 @@ import {
   Modal,
   Switch,
   Alert,
+  Platform,
+  StatusBar,
 } from 'react-native';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { LoginModal } from '@/components/auth/LoginModal';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ProfileScreen() {
+  const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showRulesModal, setShowRulesModal] = useState(false);
@@ -26,21 +30,15 @@ export default function ProfileScreen() {
   const [musicEnabled, setMusicEnabled] = useState(true);
   const [selectedLang, setSelectedLang] = useState<'ar' | 'fr'>('fr');
 
-  const username = user?.username ?? 'monitoralk';
+  const username = user?.username ?? 'Joueur';
   const level = user?.level ?? 1;
-  const xp = user?.xp ?? 350;
+  const xp = user?.xp ?? 0;
   const xpTarget = user?.xpTarget ?? 2000;
   const avatarColor = user?.avatarColor ?? '#163E27';
   const avatarEmoji = user?.avatarEmoji ?? '👑';
   const isGuest = user?.isGuest ?? true;
 
-  const statsData = user?.stats ?? {
-    gamesPlayed: 18,
-    gamesWon: 12,
-    chkobbaSweeps: 34,
-    sbaaElHayaCaptures: 14,
-    totalPoints: 246,
-  };
+  const statsData = user?.stats ?? { gamesPlayed: 0, gamesWon: 0, chkobbaSweeps: 0, sbaaElHayaCaptures: 0, totalPoints: 0 };
 
   const winRate =
     statsData.gamesPlayed > 0
@@ -83,7 +81,7 @@ export default function ProfileScreen() {
   const xpPercent = Math.min(100, Math.round((xp / xpTarget) * 100));
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { paddingTop: Math.max(insets.top, Platform.OS === 'android' ? StatusBar.currentHeight ?? 0 : 0) }]}>
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
@@ -400,6 +398,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#0A2114',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight ?? 0 : 0,
   },
   container: {
     flex: 1,

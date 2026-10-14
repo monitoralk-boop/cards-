@@ -8,11 +8,14 @@ import {
   SafeAreaView,
   TextInput,
   Modal,
+  Platform,
+  StatusBar,
   Alert,
 } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { GameArena } from '@/components/game/GameArena';
 import colors from '@/constants/colors';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface Friend {
   id: string;
@@ -32,6 +35,7 @@ interface FriendRequest {
 }
 
 export default function FriendsScreen() {
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<'friends' | 'requests'>('friends');
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -169,7 +173,7 @@ export default function FriendsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { paddingTop: Math.max(insets.top, Platform.OS === 'android' ? StatusBar.currentHeight ?? 0 : 0) }]}>
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
@@ -429,6 +433,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#0A2114',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight ?? 0 : 0,
   },
   container: {
     flex: 1,

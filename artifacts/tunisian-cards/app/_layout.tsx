@@ -11,9 +11,11 @@ import {
   Inter_700Bold,
   useFonts,
 } from '@expo-google-fonts/inter';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { ActivityIndicator, View } from 'react-native';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -21,8 +23,21 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
+  const { user, isLoading } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isLoading) return;
+    const onAuthScreen = (segments as string[])[0] === 'auth';
+    if (!user && !onAuthScreen) router.replace('/auth' as never);
+    else if (user && onAuthScreen) router.replace('/(tabs)');
+  }, [isLoading, user, segments, router]);
+
+  if (isLoading) return <View style={{ flex: 1, backgroundColor: '#081B12', alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color="#D4AF37" /></View>;
   return (
     <Stack screenOptions={{ headerBackTitle: 'Back' }}>
+      <Stack.Screen name="auth" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
     </Stack>
   );

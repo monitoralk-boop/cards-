@@ -7,17 +7,42 @@ import {
   ScrollView,
   SafeAreaView,
   Alert,
+  Platform,
+  StatusBar,
 } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { CardBackPattern } from '@/components/game/CardSuits';
 import { RewardedAdModal } from '@/components/ads/RewardedAdModal';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ShopScreen() {
-  const { user, updateCoins } = useAuth();
-  const coins = user?.coins ?? 1000;
-  const [selectedBack, setSelectedBack] = useState<'red' | 'green'>('red');
+  const insets = useSafeAreaInsets();
+  const { user, updateCoins, spendCoins, purchaseCosmetic, equipCosmetic } = useAuth();
+  const coins = user?.coins ?? 1500;
   const [showAdModal, setShowAdModal] = useState(false);
+  const selectedBack = user?.equippedCardBack ?? 'red';
+  const ownedBacks = user?.ownedCardBacks ?? ['red'];
+  const ownedThemes = user?.ownedTableThemes ?? ['burgundy'];
+  const selectedTheme = user?.equippedTableTheme ?? 'burgundy';
+
+  const handleCosmetic = async (kind: 'cardBack' | 'tableTheme', item: 'red' | 'green' | 'burgundy' | 'emerald', price: number) => {
+    if (!user) {
+      Alert.alert('Connexion requise', 'Connectez-vous pour sauvegarder vos achats et équipements.');
+      return;
+    }
+    const owned = kind === 'cardBack' ? ownedBacks.includes(item as 'red' | 'green') : ownedThemes.includes(item as 'burgundy' | 'emerald');
+    if (!owned) {
+      const purchased = await purchaseCosmetic(kind, item, price);
+      if (!purchased) {
+        Alert.alert('Solde insuffisant', 'Vous n’avez pas assez de pièces pour cet article.');
+        return;
+      }
+    }
+    const equipped = await equipCosmetic(kind, item);
+    if (equipped) Alert.alert('Boutique', owned ? 'Article équipé.' : 'Article acheté et équipé !');
+    else Alert.alert('Erreur', 'Impossible d’équiper cet article. Réessayez.');
+  };
 
   const coinPackages = [
     { id: 'c-1', coins: 1000, price: '3.00 TND', popular: false },
@@ -43,7 +68,7 @@ export default function ShopScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { paddingTop: Math.max(insets.top, Platform.OS === 'android' ? StatusBar.currentHeight ?? 0 : 0) }]}>
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
@@ -128,7 +153,7 @@ export default function ShopScreen() {
         <View style={styles.cardBacksRow}>
           {/* Red Arabesque */}
           <TouchableOpacity
-            onPress={() => setSelectedBack('red')}
+            onPress={() => void handleCosmetic('cardBack', 'red', 0)}
             style={[
               styles.backSkinCard,
               selectedBack === 'red' && styles.backSkinActive,
@@ -139,13 +164,13 @@ export default function ShopScreen() {
             </View>
             <Text style={styles.skinTitle}>Zellij Rouge Beylical</Text>
             <Text style={styles.skinStatus}>
-              {selectedBack === 'red' ? '✓ Équipé' : 'Sélectionner'}
+              {selectedBack === 'red' ? '✓ Équipé' : ownedBacks.includes('red') ? 'Équiper' : 'Gratuit'}
             </Text>
           </TouchableOpacity>
 
           {/* Green Arabesque */}
           <TouchableOpacity
-            onPress={() => setSelectedBack('green')}
+            onPress={() => void handleCosmetic('cardBack', 'green', 750)}
             style={[
               styles.backSkinCard,
               selectedBack === 'green' && styles.backSkinActive,
@@ -156,7 +181,7 @@ export default function ShopScreen() {
             </View>
             <Text style={styles.skinTitle}>Émeraude Médina</Text>
             <Text style={styles.skinStatus}>
-              {selectedBack === 'green' ? '✓ Équipé' : 'Sélectionner'}
+              {selectedBack === 'green' ? '✓ Équipé' : ownedBacks.includes('green') ? 'Équiper' : '750 pièces'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -172,9 +197,9 @@ export default function ShopScreen() {
               <Text style={styles.feltName}>Bordeaux Café des Nattes</Text>
               <Text style={styles.feltDesc}>Ambiance traditionnelle Sidi Bou Saïd</Text>
             </View>
-            <View style={styles.activeTag}>
-              <Text style={styles.activeTagText}>Actif</Text>
-            </View>
+            <TouchableOpacity onPress={() => void handleCosmetic('tableTheme', 'burgundy', 0)} style={styles.activeTag}>
+              <Text style={styles.activeTagText}>{selectedTheme === 'burgundy' ? 'Actif' : 'Équiper'}</Text>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.feltCard}>
@@ -183,8 +208,8 @@ export default function ShopScreen() {
               <Text style={styles.feltName}>Vert Émeraude Zitouna</Text>
               <Text style={styles.feltDesc}>Tapis classique de tournoi</Text>
             </View>
-            <TouchableOpacity style={styles.equipBtn}>
-              <Text style={styles.equipBtnText}>Équiper</Text>
+            <TouchableOpacity onPress={() => void handleCosmetic('tableTheme', 'emerald', 1000)} style={styles.equipBtn}>
+              <Text style={styles.equipBtnText}>{selectedTheme === 'emerald' ? 'Actif' : ownedThemes.includes('emerald') ? 'Équiper' : '1000 pièces'}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -229,6 +254,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#0A2114',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight ?? 0 : 0,
   },
   container: {
     flex: 1,

@@ -9,7 +9,7 @@ export interface ChkobbaCard {
 export interface PlayerScoreBreakdown {
   carta: { count: number; won: boolean; points: number };
   dineri: { count: number; won: boolean; points: number };
-  bermila: { count: number; won: boolean; points: number };
+  bermila: { count: number; tieBreakCount: number; won: boolean; points: number };
   sbaaElHaya: { captured: boolean; points: number };
   chkobbas: { count: number; points: number };
   totalRoundPoints: number;
@@ -53,7 +53,7 @@ export function shuffleDeck(deck: ChkobbaCard[]): ChkobbaCard[] {
   return shuffled;
 }
 
-// 3. Initial Deal (4 cards on table with 3 Kings reshuffle rule, 3 cards each)
+  // 3. Initial deal: 4 face-up, then 3 cards to each player.
 export function initialDeal(): {
   table: ChkobbaCard[];
   playerHand: ChkobbaCard[];
@@ -62,18 +62,7 @@ export function initialDeal(): {
 } {
   let deck = createTunisianDeck();
 
-  // Draw 4 cards for table
-  let table = deck.slice(0, 4);
-  let kingCount = table.filter((c) => c.rank === 10).length;
-
-  // Reshuffle if 3 or 4 kings on table initially
-  let attempts = 0;
-  while (kingCount >= 3 && attempts < 10) {
-    deck = createTunisianDeck();
-    table = deck.slice(0, 4);
-    kingCount = table.filter((c) => c.rank === 10).length;
-    attempts++;
-  }
+  const table = deck.slice(0, 4);
 
   const playerHand = deck.slice(4, 7);
   const opponentHand = deck.slice(7, 10);
@@ -107,7 +96,7 @@ export function findPossibleCaptures(
     }));
   }
 
-  // RULE 2: If no exact match, look for combinations of 2 or more cards summing to playedCard.rank
+  // RULE 2: With no equal-value card, allow any non-empty table subset to sum to the played value.
   const sumCombinations: ChkobbaCard[][] = [];
 
   // Helper to find subsets that sum to playedCard.rank
@@ -116,7 +105,7 @@ export function findPossibleCaptures(
     startIndex: number,
     currentSum: number,
   ) {
-    if (currentSum === playedCard.rank && currentCombo.length >= 2) {
+    if (currentSum === playedCard.rank && currentCombo.length >= 1) {
       sumCombinations.push([...currentCombo]);
       return;
     }
@@ -260,11 +249,13 @@ export function calculateScores(
   const pDineriPts = pDineriWon ? 1 : 0;
   const oDineriPts = oDineriWon ? 1 : 0;
 
-  // 3. Bermila (majority of 7s, >2)
+  // 3. Bermila: most 7s, with most 6s as the tie-break.
   const pSevens = playerCaptured.filter((c) => c.rank === 7).length;
   const oSevens = opponentCaptured.filter((c) => c.rank === 7).length;
-  const pBermilaWon = pSevens > oSevens && pSevens > 2;
-  const oBermilaWon = oSevens > pSevens && oSevens > 2;
+  const pSixes = playerCaptured.filter((c) => c.rank === 6).length;
+  const oSixes = opponentCaptured.filter((c) => c.rank === 6).length;
+  const pBermilaWon = pSevens > oSevens || (pSevens === oSevens && pSixes > oSixes);
+  const oBermilaWon = oSevens > pSevens || (pSevens === oSevens && oSixes > pSixes);
   const pBermilaPts = pBermilaWon ? 1 : 0;
   const oBermilaPts = oBermilaWon ? 1 : 0;
 
@@ -299,7 +290,7 @@ export function calculateScores(
     playerBreakdown: {
       carta: { count: pCards, won: pCartaWon, points: pCartaPts },
       dineri: { count: pDineri, won: pDineriWon, points: pDineriPts },
-      bermila: { count: pSevens, won: pBermilaWon, points: pBermilaPts },
+      bermila: { count: pSevens, tieBreakCount: pSixes, won: pBermilaWon, points: pBermilaPts },
       sbaaElHaya: { captured: pSbaa, points: pSbaaPts },
       chkobbas: { count: playerChkobbaCount, points: pChkobbaPts },
       totalRoundPoints: pRoundTotal,
@@ -307,7 +298,7 @@ export function calculateScores(
     opponentBreakdown: {
       carta: { count: oCards, won: oCartaWon, points: oCartaPts },
       dineri: { count: oDineri, won: oDineriWon, points: oDineriPts },
-      bermila: { count: oSevens, won: oBermilaWon, points: oBermilaPts },
+      bermila: { count: oSevens, tieBreakCount: oSixes, won: oBermilaWon, points: oBermilaPts },
       sbaaElHaya: { captured: oSbaa, points: oSbaaPts },
       chkobbas: { count: opponentChkobbaCount, points: oChkobbaPts },
       totalRoundPoints: oRoundTotal,
