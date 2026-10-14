@@ -9,6 +9,9 @@ import {
   Dimensions,
   Modal,
   Alert,
+  BackHandler,
+  Platform,
+  StatusBar,
 } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { PlayingCard } from './PlayingCard';
@@ -22,6 +25,7 @@ import {
 } from './chkobbaLogic';
 import { useAuth } from '@/contexts/AuthContext';
 import { RamiGameScreen } from './RamiGameScreen';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -41,6 +45,24 @@ export const GameArena: React.FC<GameArenaProps> = ({
   onBackToLobby,
 }) => {
   const { user, addGameResult } = useAuth();
+  const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    if (gameMode !== 'chkobba') return;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      Alert.alert(
+        'مغادرة اللعبة',
+        'هل أنت متأكد من مغادرة الطاولة الحالية؟',
+        [
+          { text: 'مواصلة اللعب', style: 'cancel' },
+          { text: 'خروج', style: 'destructive', onPress: () => onBackToLobby?.() },
+        ],
+      );
+      return true;
+    });
+
+    return () => subscription.remove();
+  }, [gameMode, onBackToLobby]);
 
   if (gameMode === 'rami') {
     return <RamiGameScreen opponentName={opponentName} onBackToLobby={onBackToLobby} />;
@@ -218,7 +240,6 @@ export const GameArena: React.FC<GameArenaProps> = ({
             capture.cards.every((card) => selectedTableCardIds.includes(card.id)),
           )
         : possibleCaptures.find((capture) => capture.kind === 'exact') ?? possibleCaptures[0];
-      if (!captureToTake && selectedTableCardIds.length > 0) return;
       if (captureToTake) {
         const captured = captureToTake.cards;
         const capturedIds = new Set(captured.map((c) => c.id));
@@ -237,6 +258,8 @@ export const GameArena: React.FC<GameArenaProps> = ({
         const cardNames = captured.map((c) => `${c.rank}`).join(' + ');
         setLastActionMessage(`أكلت الكارطة (${cardNames}) بنجاح`);
       } else {
+        // A card must always land somewhere. If the player hasn't selected a
+        // valid capture combination, treat it as a normal table play.
         newTable = [...tableCards, playedCard];
         setLastActionMessage(`رميت ${playedCard.rank} على الطاولة`);
       }
@@ -311,7 +334,7 @@ export const GameArena: React.FC<GameArenaProps> = ({
   );
 
   return (
-    <SafeAreaView style={styles.safeContainer}>
+    <SafeAreaView style={[styles.safeContainer, { paddingTop: Math.max(insets.top, Platform.OS === 'android' ? StatusBar.currentHeight ?? 0 : 0) }]}>
       {/* 1. TOP SCORE & ROOM BAR */}
       <View style={styles.topScoreBar}>
         <View style={styles.scoreRow}>
@@ -538,6 +561,11 @@ export const GameArena: React.FC<GameArenaProps> = ({
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.handScrollContent}
+            decelerationRate="fast"
+            scrollEventThrottle={16}
+            bounces={false}
+            overScrollMode="never"
+            snapToAlignment="center"
           >
             {playerHand.map((card, index) => {
               const isSelected = selectedCardId === card.id;
@@ -778,7 +806,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0D2818',
   },
   topScoreBar: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 6,
     backgroundColor: '#091E12',
@@ -837,7 +865,8 @@ const styles = StyleSheet.create({
   // Felt Arena
   arenaContainer: {
     flex: 1,
-    padding: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   woodFrame: {
     flex: 1,
@@ -1189,7 +1218,7 @@ const styles = StyleSheet.create({
     overflow: 'visible',
   },
   handScrollContent: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 32,
     alignItems: 'center',
     paddingVertical: 12,
   },

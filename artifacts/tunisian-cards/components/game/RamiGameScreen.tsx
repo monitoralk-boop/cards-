@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, BackHandler, Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PlayingCard } from './PlayingCard';
 import {
   addRamiCardToMeld,
   canCallFreesh,
   completeRamiRound,
-  createRamiDeck,
   createRamiGame,
   discardRamiCard,
   drawRamiCard,
@@ -14,7 +14,6 @@ import {
   meldRamiCards,
   resolveRamiDeadMelds,
   validateRamiMeld,
-  isValidRamiDeal,
   type RamiActionResult,
   type RamiCard,
   type RamiGameState,
@@ -25,15 +24,26 @@ interface Props { opponentName: string; onBackToLobby?: () => void }
 const cardLabel = (card: RamiCard) => card.suit === 'joker' ? 'Joker' : `${card.rank === 1 ? 'A' : card.rank >= 11 ? ['J', 'Q', 'K'][card.rank - 11] : card.rank}${{ spades: '♠', hearts: '♥', diamonds: '♦', clubs: '♣' }[card.suit]}`;
 
 export const RamiGameScreen: React.FC<Props> = ({ opponentName, onBackToLobby }) => {
+  const insets = useSafeAreaInsets();
   const [game, setGame] = useState<RamiGameState>(() => createRamiGame(['You', opponentName]));
   const [selected, setSelected] = useState<string[]>([]);
+
   useEffect(() => {
-    if (createRamiDeck().length !== 108 || !isValidRamiDeal(game)) throw new Error('Invalid Rami deck/deal state.');
-    for (const entry of game.players) {
-      if (!canCallFreesh(entry.hand)) continue;
-      throw new Error('Freesh hand must be reshuffled before the opening turn.');
-    }
-  }, [game]);
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      Alert.alert(
+        'مغادرة اللعبة',
+        'هل أنت متأكد من مغادرة الطاولة الحالية؟',
+        [
+          { text: 'مواصلة اللعب', style: 'cancel' },
+          { text: 'خروج', style: 'destructive', onPress: () => onBackToLobby?.() },
+        ],
+      );
+      return true;
+    });
+
+    return () => subscription.remove();
+  }, [onBackToLobby]);
+
   const player = game.players[0];
   const current = game.players[game.currentPlayerIndex];
   const botTurn = game.currentPlayerIndex !== 0;
@@ -57,7 +67,7 @@ export const RamiGameScreen: React.FC<Props> = ({ opponentName, onBackToLobby })
     const timer = setTimeout(() => {
       setGame((state) => {
         if (state.phase === 'draw') {
-          const drawn = drawRamiCard(state, state.discardPile.length ? 'discard' : 'draw');
+          const drawn = drawRamiCard(state, state.turnNumber < 2 || !state.discardPile.length ? 'draw' : 'discard');
           return drawn.ok ? drawn.state : state;
         }
         if (state.phase !== 'play') return state;
@@ -89,7 +99,7 @@ export const RamiGameScreen: React.FC<Props> = ({ opponentName, onBackToLobby })
       });
     }, 1000);
     return () => clearTimeout(timer);
-  }, [botTurn, game.phase, game.currentPlayerIndex, game.turnNumber]);
+  }, [botTurn, game]);
 
   useEffect(() => {
     if (game.phase === 'roundOver') setGame((state) => completeRamiRound(state));
@@ -102,12 +112,13 @@ export const RamiGameScreen: React.FC<Props> = ({ opponentName, onBackToLobby })
   const canDiscardSelected = selected.length === 1 && game.phase === 'play' && !botTurn && (() => {
     const card = player.hand.find((entry) => entry.id === selected[0]);
     if (!card || card.suit === 'joker') return false;
+    if (game.turnNumber === 0) return true; // Dealer must discard on opening turn
     const last = player.hand.length === 1;
     return last || !plusIds.has(card.id);
   })();
 
   return (
-    <SafeAreaView style={styles.root}>
+    <SafeAreaView style={[styles.root, { paddingTop: Math.max(insets.top, Platform.OS === 'android' ? StatusBar.currentHeight ?? 0 : 0) }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={onBackToLobby}><Text style={styles.link}>‹ Lobby</Text></TouchableOpacity>
         <Text style={styles.title}>Rami Tunisien · Quatorze</Text>
@@ -149,8 +160,32 @@ export const RamiGameScreen: React.FC<Props> = ({ opponentName, onBackToLobby })
           if (card) apply(discardRamiCard(game, player.id, card.id, player.hand.length === 1));
         }}><Text style={styles.buttonText}>Discard selected</Text></TouchableOpacity>
       </View>
-      <ScrollView horizontal contentContainerStyle={styles.hand}>
-        {player.hand.map((card) => <TouchableOpacity key={card.id} onPress={() => setSelected((ids) => ids.includes(card.id) ? ids.filter((id) => id !== card.id) : [...ids, card.id])} style={[styles.handCard, selected.includes(card.id) && styles.selectedCard, plusIds.has(card.id) && styles.plusCard]}>
+      <ScrollView
+        horizontal
+        contentContainerStyle={styles.hand}
+        showsHorizontalScrollIndicator={false}
+        decelerationRate="fast"
+        scrollEventThrottle={16}
+        bounces={false}
+        overScrollMode="never"
+      >
+        {player.hand.map((card) => <TouchableOpacity
+          key={card.id}
+          onPress={() => setSelected((ids) =>
+            ids.includes(card.id) ? ids.filter((id) => id !== card.id) : [...ids, card.id]
+          )}
+          onLongPress={() => {
+            if (game.phase === 'play' && !botTurn && game.turnNumber !== 0) {
+              const selectedCard = player.hand.find((entry) => entry.id === card.id);
+              if (selectedCard && selectedCard.suit !== 'joker') {
+                const last = player.hand.length === 1;
+                apply(discardRamiCard(game, player.id, card.id, last));
+              }
+            }
+          }}
+          delayLongPress={400}
+          style={[styles.handCard, selected.includes(card.id) && styles.selectedCard, plusIds.has(card.id) && styles.plusCard]}
+        >
           {card.suit === 'joker' ? <View style={styles.joker}><Text style={styles.jokerText}>JOKER</Text></View> : <PlayingCard gameMode="rami" suit={card.suit} rank={card.rank} width={58} height={84} />}
           {plusIds.has(card.id) && <Text style={styles.plusLabel}>PLUS</Text>}
         </TouchableOpacity>)}
@@ -165,8 +200,8 @@ export const RamiGameScreen: React.FC<Props> = ({ opponentName, onBackToLobby })
 };
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#0D2818', paddingTop: 12 },
-  header: { alignItems: 'center', gap: 4, paddingHorizontal: 12 },
+  root: { flex: 1, backgroundColor: '#0D2818' },
+  header: { alignItems: 'center', gap: 4, paddingHorizontal: 16 },
   title: { color: '#FDE68A', fontWeight: '900', fontSize: 18, textAlign: 'center' },
   score: { color: '#FFF', fontSize: 13, textAlign: 'center' },
   link: { color: '#FDE68A', fontWeight: '800', padding: 6 },
@@ -184,12 +219,12 @@ const styles = StyleSheet.create({
   meldCards: { flexDirection: 'row', gap: 8, padding: 6 },
   cardText: { color: '#FFF', fontWeight: '800' },
   muted: { color: '#D1D5DB', textAlign: 'center', marginTop: 20 },
-  controls: { flexDirection: 'row', gap: 8, paddingHorizontal: 10 },
+  controls: { flexDirection: 'row', gap: 8, paddingHorizontal: 16 },
   button: { flex: 1, minHeight: 42, borderRadius: 10, backgroundColor: '#B8860B', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8, marginVertical: 4 },
   discardButton: { backgroundColor: '#9F3A38' },
   disabled: { opacity: 0.45 },
   buttonText: { color: '#FFF', fontWeight: '900', textAlign: 'center' },
-  hand: { alignItems: 'flex-end', paddingHorizontal: 8, paddingTop: 10, paddingBottom: 18, gap: 3 },
+  hand: { alignItems: 'flex-end', paddingHorizontal: 32, paddingTop: 10, paddingBottom: 18, gap: 3 },
   handCard: { borderWidth: 2, borderColor: 'transparent', borderRadius: 8, position: 'relative' },
   selectedCard: { borderColor: '#FDE047', transform: [{ translateY: -8 }] },
   plusCard: { borderBottomColor: '#22C55E' },

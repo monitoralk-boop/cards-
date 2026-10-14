@@ -42,8 +42,8 @@ export const PlayingCard: React.FC<PlayingCardProps> = ({
   useEffect(() => {
     Animated.spring(selectionProgress, {
       toValue: isSelected ? 1 : 0,
-      speed: 24,
-      bounciness: 7,
+      speed: 18,
+      bounciness: 4,
       useNativeDriver: true,
     }).start();
   }, [isSelected, selectionProgress]);
