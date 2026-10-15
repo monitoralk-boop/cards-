@@ -317,6 +317,237 @@ export function completeRamiRound(state: RamiGameState): RamiGameState {
   return resolveRamiDeadMelds(scoreRamiRound(state));
 }
 
+export function meldMultipleRamiCards(
+  state: RamiGameState,
+  playerId: RamiPlayerId,
+  meldList: RamiMeldCard[][],
+): RamiActionResult {
+  if (state.phase !== 'play') return fail('Draw before melding.');
+  if (state.turnNumber === 0) return fail('The dealer must discard first; melding starts on the next turn.');
+  const player = state.players[state.currentPlayerIndex];
+  if (player.id !== playerId) return fail('It is not this player’s turn.');
+
+  let totalPoints = 0;
+  const createdMelds: RamiMeld[] = [];
+  const usedCardIds = new Set<string>();
+
+  for (let i = 0; i < meldList.length; i++) {
+    const cards = meldList[i];
+    const valid = validateRamiMeld(cards);
+    if (!valid) return fail('One of the melds is invalid.');
+    for (const { card } of cards) {
+      if (usedCardIds.has(card.id)) return fail('A card cannot be used in multiple melds.');
+      if (!player.hand.some((held) => held.id === card.id)) return fail('You can only meld cards from your hand.');
+      usedCardIds.add(card.id);
+    }
+    if (!player.opened && state.firstOpeningLimit !== null && cards.some(({ card }) => card.suit === 'joker')) {
+      return fail('Jokers cannot be used in an initial opening.');
+    }
+    totalPoints += valid.points;
+    createdMelds.push({
+      id: `meld-${state.roundNumber}-${state.turnNumber}-${state.melds.length + i}`,
+      kind: valid.kind,
+      cards: cards.map((entry) => ({ ...entry })),
+      ownerId: playerId,
+    });
+  }
+
+  if (!player.opened && state.firstOpeningLimit !== null && totalPoints <= state.firstOpeningLimit) {
+    return fail(`Your opening must exceed ${state.firstOpeningLimit} points.`);
+  }
+
+  const players = state.players.map((entry) =>
+    entry.id === playerId
+      ? { ...entry, hand: entry.hand.filter((held) => !usedCardIds.has(held.id)), opened: true }
+      : { ...entry },
+  );
+
+  return ok({
+    ...state,
+    players,
+    melds: [...state.melds, ...createdMelds],
+    firstOpeningLimit: state.firstOpeningLimit ?? totalPoints,
+    message: `${player.name} melded ${totalPoints} points (${createdMelds.length} melds).`,
+  });
+}
+
+export const MELD_COLORS = ['#EF4444', '#22C55E', '#3B82F6', '#A855F7', '#F59E0B', '#EC4899'];
+
+export interface DetectedMeldGroup {
+  id: string;
+  kind: 'set' | 'sequence';
+  cards: RamiMeldCard[];
+  points: number;
+  color: string;
+}
+
+export interface HandMeldsDetection {
+  groups: DetectedMeldGroup[];
+  totalPoints: number;
+  cardGroupMap: Record<string, { groupIndex: number; color: string }>;
+}
+
+export function detectHandMelds(hand: RamiCard[]): HandMeldsDetection {
+  const suits: RamiSuit[] = ['spades', 'hearts', 'diamonds', 'clubs'];
+  const candidates: { cards: RamiMeldCard[]; info: { kind: 'set' | 'sequence'; points: number } }[] = [];
+
+  const jokers = hand.filter((c) => c.suit === 'joker');
+  const normalCards = hand.filter((c) => c.suit !== 'joker');
+
+  // 1. Sequences of same suit
+  for (const suit of suits) {
+    const suitCards = normalCards.filter((c) => c.suit === suit);
+    if (suitCards.length === 0) continue;
+    const ranks = Array.from(new Set(suitCards.map((c) => c.rank))).sort((a, b) => a - b);
+
+    for (let i = 0; i < ranks.length; i++) {
+      for (let j = i + 2; j < ranks.length; j++) {
+        let isConsecutive = true;
+        for (let k = i + 1; k <= j; k++) {
+          if (ranks[k] !== ranks[k - 1] + 1) {
+            isConsecutive = false;
+            break;
+          }
+        }
+        if (isConsecutive) {
+          const runCards: RamiMeldCard[] = [];
+          for (let k = i; k <= j; k++) {
+            const card = suitCards.find((c) => c.rank === ranks[k])!;
+            runCards.push({ card });
+          }
+          const valid = validateRamiMeld(runCards);
+          if (valid) candidates.push({ cards: runCards, info: valid });
+        }
+      }
+    }
+
+    if (jokers.length >= 1) {
+      const joker = jokers[0];
+      for (let i = 0; i < ranks.length; i++) {
+        for (let j = i + 1; j < ranks.length; j++) {
+          const r1 = ranks[i];
+          const r2 = ranks[j];
+          if (r2 === r1 + 2) {
+            const c1 = suitCards.find((c) => c.rank === r1)!;
+            const c2 = suitCards.find((c) => c.rank === r2)!;
+            const runCards: RamiMeldCard[] = [
+              { card: c1 },
+              { card: joker, representedSuit: suit, representedRank: r1 + 1 },
+              { card: c2 },
+            ];
+            const valid = validateRamiMeld(runCards);
+            if (valid) candidates.push({ cards: runCards, info: valid });
+          }
+          if (r2 === r1 + 1) {
+            const c1 = suitCards.find((c) => c.rank === r1)!;
+            const c2 = suitCards.find((c) => c.rank === r2)!;
+            if (r1 > 1) {
+              const runCardsStart: RamiMeldCard[] = [
+                { card: joker, representedSuit: suit, representedRank: r1 - 1 },
+                { card: c1 },
+                { card: c2 },
+              ];
+              const validStart = validateRamiMeld(runCardsStart);
+              if (validStart) candidates.push({ cards: runCardsStart, info: validStart });
+            }
+            if (r2 < 13) {
+              const runCardsEnd: RamiMeldCard[] = [
+                { card: c1 },
+                { card: c2 },
+                { card: joker, representedSuit: suit, representedRank: r2 + 1 },
+              ];
+              const validEnd = validateRamiMeld(runCardsEnd);
+              if (validEnd) candidates.push({ cards: runCardsEnd, info: validEnd });
+            } else if (r2 === 13) {
+              const runCardsAce: RamiMeldCard[] = [
+                { card: c1 },
+                { card: c2 },
+                { card: joker, representedSuit: suit, representedRank: 1 },
+              ];
+              candidates.push({ cards: runCardsAce, info: { kind: 'sequence', points: 31 } });
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // 2. Sets of same rank
+  for (let rank = 1; rank <= 13; rank++) {
+    const rankCards = normalCards.filter((c) => c.rank === rank);
+    const bySuit = new Map<RamiSuit, RamiCard>();
+    for (const c of rankCards) {
+      if (c.suit !== 'joker' && !bySuit.has(c.suit)) bySuit.set(c.suit, c);
+    }
+    const uniqueSuitCards = Array.from(bySuit.values());
+
+    if (uniqueSuitCards.length >= 4) {
+      const setCards: RamiMeldCard[] = uniqueSuitCards.slice(0, 4).map((card) => ({ card }));
+      const valid = validateRamiMeld(setCards);
+      if (valid) candidates.push({ cards: setCards, info: valid });
+    }
+    if (uniqueSuitCards.length >= 3) {
+      for (let a = 0; a < uniqueSuitCards.length; a++) {
+        for (let b = a + 1; b < uniqueSuitCards.length; b++) {
+          for (let c = b + 1; c < uniqueSuitCards.length; c++) {
+            const setCards: RamiMeldCard[] = [uniqueSuitCards[a], uniqueSuitCards[b], uniqueSuitCards[c]].map((card) => ({ card }));
+            const valid = validateRamiMeld(setCards);
+            if (valid) candidates.push({ cards: setCards, info: valid });
+          }
+        }
+      }
+    }
+    if (uniqueSuitCards.length >= 2 && jokers.length >= 1) {
+      const joker = jokers[0];
+      for (let a = 0; a < uniqueSuitCards.length; a++) {
+        for (let b = a + 1; b < uniqueSuitCards.length; b++) {
+          const usedSuits = [uniqueSuitCards[a].suit, uniqueSuitCards[b].suit];
+          const remainingSuit = suits.find((s) => !usedSuits.includes(s)) ?? 'clubs';
+          const setCards: RamiMeldCard[] = [
+            { card: uniqueSuitCards[a] },
+            { card: uniqueSuitCards[b] },
+            { card: joker, representedRank: rank, representedSuit: remainingSuit },
+          ];
+          const valid = validateRamiMeld(setCards);
+          if (valid) candidates.push({ cards: setCards, info: valid });
+        }
+      }
+    }
+  }
+
+  candidates.sort((a, b) => b.info.points - a.info.points || b.cards.length - a.cards.length);
+
+  const selectedGroups: DetectedMeldGroup[] = [];
+  const usedIds = new Set<string>();
+
+  for (const candidate of candidates) {
+    const cardIds = candidate.cards.map((c) => c.card.id);
+    if (cardIds.every((id) => !usedIds.has(id))) {
+      for (const id of cardIds) usedIds.add(id);
+      const color = MELD_COLORS[selectedGroups.length % MELD_COLORS.length];
+      selectedGroups.push({
+        id: `detected-${selectedGroups.length}`,
+        kind: candidate.info.kind,
+        cards: candidate.cards,
+        points: candidate.info.points,
+        color,
+      });
+    }
+  }
+
+  const cardGroupMap: Record<string, { groupIndex: number; color: string }> = {};
+  let totalPoints = 0;
+
+  selectedGroups.forEach((group, groupIndex) => {
+    totalPoints += group.points;
+    group.cards.forEach((entry) => {
+      cardGroupMap[entry.card.id] = { groupIndex, color: group.color };
+    });
+  });
+
+  return { groups: selectedGroups, totalPoints, cardGroupMap };
+}
+
 export function chooseRamiMatchWinner(players: RamiPlayerState[]): RamiPlayerId | null {
   if (!players.length) return null;
   return [...players].sort((a, b) => a.score - b.score)[0].id;

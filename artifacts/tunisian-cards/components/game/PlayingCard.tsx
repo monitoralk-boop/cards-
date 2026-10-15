@@ -1,330 +1,220 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import {
-  StyleSheet,
-  View,
-  Text,
-  TouchableOpacity,
-  Image,
-  Animated,
-} from 'react-native';
-import {
-  RenderSuitIcon,
-  SuitType,
   CardBackPattern,
+  RenderSuitIcon,
+  TunisianJackIllustration,
+  type SuitType,
 } from './CardSuits';
-import { getCardArtwork } from './CardArtwork';
+import { tunisianTheme } from '../../src/theme/tunisianTheme';
+
+type GameMode = 'chkobba' | 'rami';
 
 export interface PlayingCardProps {
-  gameMode?: 'chkobba' | 'rami';
   suit: SuitType;
-  rank: number; // 1-10 for Chkobba, 1-13 for standard/Rami
+  rank: number;
+  width?: number;
+  height?: number;
+  selected?: boolean;
+  playable?: boolean;
+  dimmed?: boolean;
+  small?: boolean;
+  /** Compatibility with existing game callers. */
+  gameMode?: GameMode;
   isFaceDown?: boolean;
   isSelected?: boolean;
   onPress?: () => void;
-  width?: number;
-  height?: number;
   disabled?: boolean;
-  elevationOffset?: number;
+  backTheme?: 'red' | 'green';
+}
+
+const pipPositions: Record<number, readonly [number, number][]> = {
+  2: [[0.5, 0.22], [0.5, 0.78]],
+  3: [[0.5, 0.2], [0.5, 0.5], [0.5, 0.8]],
+  4: [[0.28, 0.23], [0.72, 0.23], [0.28, 0.77], [0.72, 0.77]],
+  5: [[0.28, 0.23], [0.72, 0.23], [0.5, 0.5], [0.28, 0.77], [0.72, 0.77]],
+  6: [[0.28, 0.2], [0.72, 0.2], [0.28, 0.5], [0.72, 0.5], [0.28, 0.8], [0.72, 0.8]],
+  7: [[0.28, 0.18], [0.72, 0.18], [0.5, 0.36], [0.28, 0.5], [0.72, 0.5], [0.28, 0.82], [0.72, 0.82]],
+  8: [[0.28, 0.16], [0.72, 0.16], [0.28, 0.36], [0.72, 0.36], [0.28, 0.64], [0.72, 0.64], [0.28, 0.84], [0.72, 0.84]],
+  9: [[0.28, 0.15], [0.72, 0.15], [0.28, 0.33], [0.72, 0.33], [0.5, 0.5], [0.28, 0.67], [0.72, 0.67], [0.28, 0.85], [0.72, 0.85]],
+  10: [[0.28, 0.13], [0.72, 0.13], [0.28, 0.31], [0.72, 0.31], [0.28, 0.45], [0.72, 0.45], [0.28, 0.55], [0.72, 0.55], [0.28, 0.69], [0.72, 0.69]],
+};
+
+function getRankLabel(rank: number, mode: GameMode): string {
+  if (mode === 'chkobba') {
+    if (rank === 8) return 'J';
+    if (rank === 9) return 'Q';
+    if (rank === 10) return 'K';
+  } else {
+    if (rank === 11) return 'J';
+    if (rank === 12) return 'Q';
+    if (rank === 13) return 'K';
+  }
+  return String(rank);
 }
 
 export const PlayingCard: React.FC<PlayingCardProps> = ({
-  gameMode = 'chkobba',
   suit,
   rank,
+  width = 58,
+  height = 84,
+  selected = false,
+  playable = false,
+  dimmed = false,
+  small = false,
+  gameMode = 'rami',
   isFaceDown = false,
   isSelected = false,
   onPress,
-  width = 68,
-  height = 98,
   disabled = false,
+  backTheme,
 }) => {
-  const selectionProgress = useRef(new Animated.Value(isSelected ? 1 : 0)).current;
-  useEffect(() => {
-    Animated.spring(selectionProgress, {
-      toValue: isSelected ? 1 : 0,
-      speed: 18,
-      bounciness: 4,
-      useNativeDriver: true,
-    }).start();
-  }, [isSelected, selectionProgress]);
-  const selectionTransform = [{ translateY: selectionProgress.interpolate({ inputRange: [0, 1], outputRange: [0, -12] }) }, { scale: selectionProgress.interpolate({ inputRange: [0, 1], outputRange: [1, 1.035] }) }];
-  // Display string for the rank
-  const getRankDisplay = (val: number): string => {
-    switch (val) {
-      case 1:
-        return '1'; // In Tunisian card games, Ace is '1'
-      case 8:
-        return gameMode === 'chkobba' ? 'J' : '8';
-      case 9:
-        return gameMode === 'chkobba' ? 'Q' : '9';
-      case 10:
-        return gameMode === 'chkobba' ? 'K' : '10';
-      case 11:
-        return 'J';
-      case 12:
-        return 'Q';
-      case 13:
-        return 'K';
-      default:
-        return String(val);
-    }
-  };
+  const isCardSelected = selected || isSelected;
+  const mode = gameMode;
+  const faceRank = getRankLabel(rank, mode);
+  const isFigure = faceRank === 'J' || faceRank === 'Q' || faceRank === 'K';
+  const isJoker = suit === 'joker';
+  const ink = suit === 'hearts' || suit === 'diamonds' || suit === 'dineri' || suit === 'coupe'
+    ? tunisianTheme.colors.danger
+    : tunisianTheme.colors.ink;
+  const edgeInset = Math.max(3, Math.round(width * 0.075));
+  const cornerRankSize = Math.max(10, Math.min(small ? 12 : 16, width * 0.23));
+  const pipSize = Math.max(9, Math.min(18, width * 0.24));
+  const centerPipPositions = pipPositions[rank];
+  const resolvedBackTheme = backTheme ?? (mode === 'chkobba' ? 'green' : 'red');
 
-  const isRedSuit =
-    suit === 'hearts' || suit === 'diamonds' || suit === 'dineri' || suit === 'coupe';
-  const isSabaaElHaya =
-    gameMode === 'chkobba' && (suit === 'dineri' || suit === 'diamonds') && rank === 7;
-
-  const rankColor = isRedSuit ? '#C5221F' : '#1C1917';
-
-  // Face down (Card back)
-  if (isFaceDown) {
-    return (
-      <View
-        style={[
-          styles.cardBase,
-          {
-            width,
-            height,
-            backgroundColor: '#450A0A',
-          },
-        ]}
-      >
-        <CardBackPattern width={width} height={height} theme="red" />
-      </View>
-    );
-  }
-
-  // Check if a real image asset exists for this card
-  const localImage = getCardArtwork(gameMode, suit, rank);
-
-  if (localImage) {
-    const imageCardContent = (
-      <View
-        style={[
-          styles.cardBase,
-          styles.cardFace,
-          {
-            width,
-            height,
-            borderColor: isSelected
-              ? '#F59E0B'
-              : isSabaaElHaya
-              ? '#D4AF37'
-              : '#D6CDB8',
-            borderWidth: isSelected ? 2.5 : 1.2,
-            transform: [{ translateY: isSelected ? -12 : 0 }],
-            shadowOpacity: isSelected ? 0.45 : 0.2,
-            shadowRadius: isSelected ? 10 : 4,
-            elevation: isSelected ? 12 : 3,
-            backgroundColor: '#FAF7EE',
-            padding: 2,
-          },
-        ]}
-      >
-        {isSabaaElHaya && (
-          <View style={styles.sabaaHayaBadge}>
-            <Text style={styles.sabaaHayaText}>★ 7 الحيّة</Text>
-          </View>
-        )}
-        <Image
-          source={localImage}
-          style={{ width: '100%', height: '100%', borderRadius: 6 }}
-          resizeMode="contain"
-        />
-      </View>
-    );
-
-    if (onPress && !disabled) {
-      return (
-        <TouchableOpacity
-          activeOpacity={0.88}
-          onPress={onPress}
-          style={styles.touchableWrapper}
-        >
-          {imageCardContent}
-        </TouchableOpacity>
-      );
-    }
-    return imageCardContent;
-  }
-
-  // Vector render for other cards in the classic French café style
-  const cardContent = (
-    <Animated.View
+  const card = isFaceDown ? (
+    <View style={[styles.card, styles.back, { width, height }, isCardSelected && styles.selectedCard]}>
+      <CardBackPattern width={width} height={height} theme={resolvedBackTheme} />
+    </View>
+  ) : (
+    <View
       style={[
-        styles.cardBase,
-        styles.cardFace,
-        {
-          width,
-          height,
-          borderColor: isSelected
-            ? '#F59E0B'
-            : isSabaaElHaya
-            ? '#D4AF37'
-            : '#D6CDB8',
-          borderWidth: isSelected ? 2.5 : 1.2,
-          transform: selectionTransform,
-          shadowOpacity: isSelected ? 0.45 : 0.2,
-          shadowRadius: isSelected ? 10 : 4,
-          elevation: isSelected ? 12 : 3,
-        },
+        styles.card,
+        styles.face,
+        { width, height, borderRadius: tunisianTheme.radius.card, opacity: dimmed ? 0.45 : 1 },
+        isCardSelected && styles.selectedCard,
+        playable && styles.playableCard,
       ]}
     >
-      {/* Sabaa El Haya Golden Ribbon */}
-      {isSabaaElHaya && (
-        <View style={styles.sabaaHayaBadge}>
-          <Text style={styles.sabaaHayaText}>★ 7 الحيّة</Text>
-        </View>
-      )}
-
-      {/* Top Left Rank & Suit */}
-      <View style={styles.cornerTopLeft}>
-        <Text style={[styles.rankText, { color: rankColor }]}>
-          {getRankDisplay(rank)}
+      <View style={[styles.corner, styles.topCorner, { top: edgeInset, left: edgeInset }]}>
+        <Text numberOfLines={1} style={[styles.rank, { color: isJoker ? '#7C3AED' : ink, fontSize: cornerRankSize }]}>
+          {isJoker ? 'J' : faceRank}
         </Text>
-        <View style={styles.suitIconWrapper}>
-          <RenderSuitIcon suit={suit} size={width > 60 ? 15 : 12} />
-        </View>
+        {isJoker ? <Text style={[styles.cornerStar, { color: '#D4AF37' }]}>✦</Text> : <RenderSuitIcon suit={suit} size={Math.min(14, cornerRankSize)} />}
       </View>
 
-      {/* Center Art / Pips */}
-      <View style={styles.centerArt}>
-        {rank === 7 ? (
-          // 7-pips arrangement (like the traditional 7 of Clubs)
-          <View style={styles.sevenPipsContainer}>
-            <View style={styles.pipsRow}>
-              <RenderSuitIcon suit={suit} size={width > 60 ? 13 : 10} />
-              <RenderSuitIcon suit={suit} size={width > 60 ? 13 : 10} />
-            </View>
-            <View style={styles.pipsCenterRow}>
-              <RenderSuitIcon suit={suit} size={width > 60 ? 13 : 10} />
-            </View>
-            <View style={styles.pipsRow}>
-              <RenderSuitIcon suit={suit} size={width > 60 ? 13 : 10} />
-              <RenderSuitIcon suit={suit} size={width > 60 ? 13 : 10} />
-            </View>
-            <View style={styles.pipsRow}>
-              <RenderSuitIcon suit={suit} size={width > 60 ? 13 : 10} />
-              <RenderSuitIcon suit={suit} size={width > 60 ? 13 : 10} />
+      <View pointerEvents="none" style={styles.center}>
+        {isJoker ? (
+          <View style={styles.jokerCenter}>
+            <Text style={styles.jokerStar}>✦</Text>
+            <Text style={[styles.jokerLetter, { fontSize: Math.min(48, height * 0.53) }]}>J</Text>
+            <Text style={styles.jokerStar}>✦</Text>
+          </View>
+        ) : isFigure ? (
+          <View style={[styles.figure, { width: width * 0.76, height: height * 0.56 }]}>
+            <TunisianJackIllustration width={width * 0.76} height={height * 0.56} />
+            <View style={styles.figureLabel}>
+              <Text style={[styles.figureRank, { color: ink }]}>{faceRank}</Text>
+              <RenderSuitIcon suit={suit} size={Math.max(8, Math.min(13, width * 0.18))} />
             </View>
           </View>
+        ) : rank === 1 ? (
+          <RenderSuitIcon suit={suit} size={Math.min(width * 0.52, height * 0.34)} />
+        ) : centerPipPositions ? (
+          <View style={styles.pips}>
+            {centerPipPositions.map(([x, y], index) => (
+              <View key={index} style={{ position: 'absolute', left: `${x * 100}%`, top: `${y * 100}%`, transform: [{ translateX: -pipSize / 2 }, { translateY: -pipSize / 2 }, ...(y > 0.5 ? [{ rotate: '180deg' as const }] : [])] }}>
+                <RenderSuitIcon suit={suit} size={pipSize} />
+              </View>
+            ))}
+          </View>
         ) : (
-          <RenderSuitIcon
-            suit={suit}
-            size={Math.min(width * 0.46, height * 0.42)}
-          />
+          <RenderSuitIcon suit={suit} size={Math.min(width * 0.48, height * 0.35)} />
         )}
       </View>
 
-      {/* Bottom Right Inverted Rank & Suit */}
-      <View style={styles.cornerBottomRight}>
-        <View style={styles.suitIconWrapper}>
-          <RenderSuitIcon suit={suit} size={width > 60 ? 15 : 12} />
-        </View>
-        <Text style={[styles.rankText, { color: rankColor }]}>
-          {getRankDisplay(rank)}
+      <View style={[styles.corner, styles.bottomCorner, { bottom: edgeInset, right: edgeInset }]}>
+        <Text numberOfLines={1} style={[styles.rank, { color: isJoker ? '#7C3AED' : ink, fontSize: cornerRankSize }]}>
+          {isJoker ? 'J' : faceRank}
         </Text>
+        {isJoker ? <Text style={[styles.cornerStar, { color: '#D4AF37' }]}>✦</Text> : <RenderSuitIcon suit={suit} size={Math.min(14, cornerRankSize)} />}
       </View>
-    </Animated.View>
+    </View>
   );
 
-  if (onPress && !disabled) {
+  if (onPress) {
     return (
-      <TouchableOpacity
-        activeOpacity={0.88}
-        onPress={onPress}
-        style={styles.touchableWrapper}
-      >
-        {cardContent}
+      <TouchableOpacity activeOpacity={0.9} disabled={disabled} onPress={onPress} style={styles.touchable}>
+        {card}
       </TouchableOpacity>
     );
   }
-
-  return cardContent;
+  return card;
 };
 
 const styles = StyleSheet.create({
-  touchableWrapper: {
-    zIndex: 1,
-  },
-  cardBase: {
-    borderRadius: 8,
-    overflow: 'hidden',
+  touchable: { zIndex: 1 },
+  card: {
     position: 'relative',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.24,
-    elevation: 4,
+    borderRadius: tunisianTheme.radius.card,
+    overflow: 'hidden',
+    borderWidth: 1.2,
+    borderColor: tunisianTheme.colors.ivory,
+    backgroundColor: tunisianTheme.colors.ivory,
+    ...tunisianTheme.shadows.card,
   },
-  cardFace: {
-    backgroundColor: '#FFFDF7',
-    justifyContent: 'space-between',
-    padding: 4,
-    borderWidth: 1,
-    borderColor: '#E7DFC9',
+  face: { backgroundColor: '#FFFDF7' },
+  back: { backgroundColor: '#450A0A' },
+  selectedCard: {
+    transform: [{ translateY: -12 }],
+    borderColor: '#F59E0B',
+    borderWidth: 2.2,
+    elevation: 10,
+    shadowColor: '#F59E0B',
+    shadowOpacity: 0.38,
+    shadowRadius: 9,
   },
-  cornerTopLeft: {
+  playableCard: {
+    shadowColor: '#22C55E',
+    shadowOpacity: 0.55,
+    shadowRadius: 9,
+    elevation: 8,
+  },
+  corner: {
     position: 'absolute',
-    top: 4,
-    left: 4,
+    zIndex: 2,
     alignItems: 'center',
-    gap: 1,
+    justifyContent: 'center',
+    minWidth: 17,
+    minHeight: 28,
+    gap: 0,
   },
-  cornerBottomRight: {
+  topCorner: {},
+  bottomCorner: { transform: [{ rotate: '180deg' }] },
+  rank: { fontWeight: '900', lineHeight: 18, textAlign: 'center' },
+  cornerStar: { fontSize: 8, lineHeight: 9 },
+  center: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+  },
+  pips: { width: '76%', height: '68%', position: 'relative' },
+  figure: { alignItems: 'center', justifyContent: 'center' },
+  figureLabel: {
     position: 'absolute',
-    bottom: 4,
-    right: 4,
-    alignItems: 'center',
-    gap: 1,
-    transform: [{ rotate: '180deg' }],
-  },
-  rankText: {
-    fontSize: 15,
-    fontWeight: '900',
-    fontFamily: 'sans-serif',
-    lineHeight: 17,
-  },
-  suitIconWrapper: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  centerArt: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sevenPipsContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    width: '65%',
-  },
-  pipsRow: {
+    right: 0,
+    bottom: 0,
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-  },
-  pipsCenterRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    width: '100%',
-  },
-  sabaaHayaBadge: {
-    position: 'absolute',
-    top: 1,
-    right: 1,
-    backgroundColor: '#D4AF37',
-    paddingHorizontal: 4,
-    paddingVertical: 1,
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: 'rgba(255,253,247,0.88)',
+    paddingHorizontal: 3,
     borderRadius: 4,
-    zIndex: 10,
-    borderWidth: 0.8,
-    borderColor: '#78350F',
   },
-  sabaaHayaText: {
-    color: '#1A1405',
-    fontSize: 8,
-    fontWeight: '900',
-  },
+  figureRank: { fontSize: 11, fontWeight: '900' },
+  jokerCenter: { alignItems: 'center', justifyContent: 'center' },
+  jokerLetter: { color: '#7C3AED', fontWeight: '900', fontFamily: 'serif', lineHeight: 52 },
+  jokerStar: { color: '#D4AF37', fontSize: 13, lineHeight: 15 },
 });

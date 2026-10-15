@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ScrollView,
   SafeAreaView,
-  Dimensions,
   Modal,
   Alert,
   BackHandler,
@@ -26,8 +25,22 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { RamiGameScreen } from './RamiGameScreen';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { tunisianTheme } from '../../src/theme/tunisianTheme';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+export const TableArena: React.FC<React.PropsWithChildren<{ style?: object; portrait?: boolean }>> = ({ children, style, portrait = false }) => (
+  <View style={[styles.arenaContainer, portrait && styles.portraitArena, style]}>
+    <View style={[styles.woodFrame, portrait && styles.portraitWoodFrame]}>
+      <View style={[styles.feltMat, portrait && styles.portraitFeltMat]}>
+        <View pointerEvents="none" style={styles.feltInnerBorder} />
+        <View pointerEvents="none" style={styles.tableMedallion}>
+          <View style={styles.medallionRing} />
+          <Text style={styles.medallionMark}>✦</Text>
+        </View>
+        {children}
+      </View>
+    </View>
+  </View>
+);
 
 interface GameArenaProps {
   gameMode?: 'chkobba' | 'rami';
@@ -369,14 +382,7 @@ export const GameArena: React.FC<GameArenaProps> = ({
       </View>
 
       {/* 2. THE FELT ARENA (Burgundy Velvet Mat with Wood Frame) */}
-      <View style={styles.arenaContainer}>
-        <View style={styles.woodFrame}>
-          <View style={styles.feltMat}>
-            <View pointerEvents="none" style={styles.feltInnerBorder} />
-            <View pointerEvents="none" style={styles.tableMedallion}>
-              <View style={styles.medallionRing} />
-              <Text style={styles.medallionMark}>✦</Text>
-            </View>
+      <TableArena>
             {/* Left Action Drawer */}
             <View style={styles.leftActionDrawer}>
               <TouchableOpacity onPress={onBackToLobby} style={styles.drawerButton}>
@@ -482,8 +488,8 @@ export const GameArena: React.FC<GameArenaProps> = ({
                           gameMode={gameMode}
                           suit={card.suit}
                           rank={card.rank}
-                          width={Math.min(62, Math.max(48, (SCREEN_WIDTH - 150) / 4))}
-                          height={Math.min(88, Math.max(68, (SCREEN_WIDTH - 150) / 4 * 1.42))}
+                          width={55}
+                          height={78}
                         />
                         {isCapturable && (
                           <View style={styles.captureIndicatorPill}>
@@ -510,9 +516,7 @@ export const GameArena: React.FC<GameArenaProps> = ({
                 </Text>
               </View>
             </View>
-          </View>
-        </View>
-      </View>
+      </TableArena>
 
       {/* 3. USER HAND & CONTROLS (BOTTOM) */}
       <View style={styles.bottomControlArea}>
@@ -868,22 +872,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
+  portraitArena: { flex: 0, width: '100%', height: '62%', minHeight: 300, paddingHorizontal: 10, paddingVertical: 2, alignSelf: 'center' },
   woodFrame: {
     flex: 1,
     backgroundColor: '#4A2511',
-    borderRadius: 20,
+    borderRadius: tunisianTheme.radius.panel,
     padding: 6,
     borderWidth: 3,
     borderColor: '#2D160A',
-    shadowColor: '#000',
-    shadowOpacity: 0.6,
-    shadowRadius: 10,
-    elevation: 8,
+    ...tunisianTheme.shadows.table,
   },
+  portraitWoodFrame: { borderRadius: tunisianTheme.radius.table, padding: 5, borderWidth: 2, borderColor: tunisianTheme.colors.gold, backgroundColor: '#4A2511' },
   feltMat: {
     flex: 1,
-    backgroundColor: '#0B3827',
-    borderRadius: 14,
+    backgroundColor: '#581C2B',
+    borderRadius: tunisianTheme.radius.panel,
     borderWidth: 1.5,
     borderColor: '#23613F',
     position: 'relative',
@@ -892,6 +895,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     overflow: 'hidden',
   },
+  portraitFeltMat: { borderRadius: tunisianTheme.radius.table, backgroundColor: '#581C2B', borderWidth: 0, paddingHorizontal: 12, paddingVertical: 12, justifyContent: 'space-between' },
   feltInnerBorder: {
     ...StyleSheet.absoluteFill,
     margin: 7,
@@ -1016,10 +1020,10 @@ const styles = StyleSheet.create({
     top: '42%',
     left: '10%',
     right: '10%',
-    backgroundColor: '#D97706',
-    borderColor: '#FEF08A',
-    borderWidth: 3,
-    borderRadius: 16,
+    backgroundColor: '#242126',
+    borderColor: tunisianTheme.colors.gold,
+    borderWidth: 2,
+    borderRadius: tunisianTheme.radius.panel,
     paddingVertical: 12,
     alignItems: 'center',
     zIndex: 99,
@@ -1033,10 +1037,10 @@ const styles = StyleSheet.create({
     zIndex: 30,
     top: '32%',
     alignSelf: 'center',
-    backgroundColor: 'rgba(9, 30, 18, 0.96)',
-    borderColor: '#D4AF37',
+    backgroundColor: '#242126',
+    borderColor: tunisianTheme.colors.gold,
     borderWidth: 2,
-    borderRadius: 18,
+    borderRadius: tunisianTheme.radius.panel,
     paddingHorizontal: 24,
     paddingVertical: 14,
     elevation: 14,
@@ -1052,8 +1056,10 @@ const styles = StyleSheet.create({
     zIndex: 29,
     top: '53%',
     alignSelf: 'center',
-    backgroundColor: 'rgba(212, 175, 55, 0.94)',
-    borderRadius: 20,
+    backgroundColor: '#D4AF37',
+    borderColor: '#F6E3A1',
+    borderWidth: 1,
+    borderRadius: tunisianTheme.radius.pill,
     paddingHorizontal: 16,
     paddingVertical: 8,
     elevation: 8,
@@ -1120,6 +1126,10 @@ const styles = StyleSheet.create({
   },
   capturableGlow: {
     transform: [{ scale: 1.05 }],
+    shadowColor: '#22C55E',
+    shadowOpacity: 0.8,
+    shadowRadius: 12,
+    elevation: 8,
   },
   selectedCaptureCard: {
     transform: [{ translateY: -8 }],
@@ -1131,10 +1141,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: -6,
     alignSelf: 'center',
-    backgroundColor: '#22C55E',
+    backgroundColor: '#16834A',
     paddingHorizontal: 5,
     paddingVertical: 1,
-    borderRadius: 6,
+    borderRadius: tunisianTheme.radius.pill,
   },
   captureIndicatorText: {
     color: '#FFF',
@@ -1237,10 +1247,10 @@ const styles = StyleSheet.create({
   summaryModalBox: {
     width: '100%',
     maxWidth: 420,
-    backgroundColor: '#0F2C1C',
-    borderColor: '#D4AF37',
+    backgroundColor: '#242126',
+    borderColor: tunisianTheme.colors.gold,
     borderWidth: 2,
-    borderRadius: 18,
+    borderRadius: tunisianTheme.radius.panel,
     padding: 16,
     gap: 12,
   },
@@ -1261,15 +1271,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   scoreTable: {
-    backgroundColor: '#143C25',
+    backgroundColor: '#302D33',
     borderRadius: 10,
     overflow: 'hidden',
-    borderColor: '#1F5335',
+    borderColor: '#514B53',
     borderWidth: 1,
   },
   tableHeaderRow: {
     flexDirection: 'row',
-    backgroundColor: '#1E4E32',
+    backgroundColor: '#39343A',
     paddingVertical: 8,
     paddingHorizontal: 10,
   },
@@ -1278,10 +1288,10 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     paddingHorizontal: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#174026',
+    borderBottomColor: '#514B53',
   },
   totalRow: {
-    backgroundColor: '#1B472D',
+    backgroundColor: '#39343A',
     borderBottomWidth: 0,
     paddingVertical: 10,
   },
@@ -1313,15 +1323,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   rewardBanner: {
-    backgroundColor: '#1E3A8A',
-    borderColor: '#60A5FA',
+    backgroundColor: '#302D33',
+    borderColor: tunisianTheme.colors.gold,
     borderWidth: 1,
     padding: 8,
     borderRadius: 8,
     alignItems: 'center',
   },
   rewardBannerText: {
-    color: '#93C5FD',
+    color: tunisianTheme.colors.ivory,
     fontSize: 12,
     fontWeight: '800',
   },
@@ -1341,8 +1351,8 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   modalSecondaryBtn: {
-    backgroundColor: '#173E28',
-    borderColor: '#D4AF37',
+    backgroundColor: '#302D33',
+    borderColor: tunisianTheme.colors.gold,
     borderWidth: 1,
     paddingVertical: 10,
     borderRadius: 10,
